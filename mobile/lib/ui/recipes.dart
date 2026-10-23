@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/model.dart';
 import '../data/nutrients.dart';
@@ -27,7 +28,7 @@ class RecipesPage extends StatelessWidget {
       appBar: AppBar(title: const Text('Recipes')),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'recipes-new',
-        icon: const Icon(Icons.add),
+        icon: const Icon(LucideIcons.plus),
         label: const Text('New recipe'),
         onPressed: () => openRecipeEditor(context, null),
       ),
@@ -70,7 +71,7 @@ class _RecipeCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Row(children: [
-                Expanded(child: Text(recipe.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16))),
+                Expanded(child: Text(recipe.name, style: context.text.titleLarge)),
                 FilledButton.tonal(onPressed: food.servings.isEmpty ? null : () => logFoodToday(context, food), child: const Text('Log')),
               ]),
               Text(
@@ -189,7 +190,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
           actions: [
             if (_saved != null)
               IconButton(
-                icon: const Icon(Icons.delete_outline),
+                icon: const Icon(LucideIcons.trash2),
                 tooltip: 'Delete',
                 onPressed: () async {
                   if (!await confirmDialog(context, 'Delete “${_saved!.name}”?', 'Diary entries that use it are kept.')) return;
@@ -213,13 +214,13 @@ class _RecipeEditorState extends State<RecipeEditor> {
           Row(children: [
             const Text('Makes'),
             IconButton(
-              icon: const Icon(Icons.remove_circle_outline),
+              icon: const Icon(LucideIcons.circleMinus),
               tooltip: 'Fewer servings',
               onPressed: servings <= 1 ? null : () => setState(() => _draft = _draft.copyWith(servings: servings - 1)),
             ),
-            Text('$servings', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Text('$servings', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
             IconButton(
-              icon: const Icon(Icons.add_circle_outline),
+              icon: const Icon(LucideIcons.circlePlus),
               tooltip: 'More servings',
               onPressed: () => setState(() => _draft = _draft.copyWith(servings: servings + 1)),
             ),
@@ -239,10 +240,10 @@ class _RecipeEditorState extends State<RecipeEditor> {
                     key: ValueKey(ing.id),
                     direction: DismissDirection.endToStart,
                     background: Container(
-                      color: Palette.danger,
+                      color: context.du.danger,
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.only(right: 20),
-                      child: const Icon(Icons.delete_outline, color: Colors.white),
+                      child: Icon(LucideIcons.trash2, color: context.du.surface),
                     ),
                     onDismissed: (_) => setState(() => _draft = _draft.copyWith(ingredients: [..._draft.ingredients.where((i) => i.id != ing.id)])),
                     child: ListTile(
@@ -255,8 +256,8 @@ class _RecipeEditorState extends State<RecipeEditor> {
                   );
                 }),
               ListTile(
-                leading: const Icon(Icons.add, color: Palette.accent),
-                title: const Text('Add ingredient', style: TextStyle(color: Palette.accent, fontWeight: FontWeight.w600)),
+                leading: Icon(LucideIcons.plus, color: context.du.accentText),
+                title: Text('Add ingredient', style: TextStyle(color: context.du.accentText, fontWeight: FontWeight.w500)),
                 onTap: _addIngredient,
               ),
             ]),
@@ -272,7 +273,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
           if (_saved != null && !_dirty && _draft.ingredients.isNotEmpty) ...[
             const SizedBox(height: 16),
             FilledButton.icon(
-              icon: const Icon(Icons.add),
+              icon: const Icon(LucideIcons.plus),
               label: const Text('Log to diary'),
               onPressed: () => logFoodToday(context, recipeAsFood(state, _saved!)),
             ),

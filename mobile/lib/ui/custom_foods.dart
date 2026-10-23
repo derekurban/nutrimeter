@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/services.dart';
 
 import '../data/model.dart';
@@ -33,7 +34,7 @@ class CustomFoodsPage extends StatelessWidget {
       appBar: AppBar(title: const Text('Custom foods')),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'foods-new',
-        icon: const Icon(Icons.add),
+        icon: const Icon(LucideIcons.plus),
         label: const Text('New food'),
         onPressed: () => editCustomFood(context),
       ),
@@ -55,7 +56,7 @@ class CustomFoodsPage extends StatelessWidget {
                   title: Text(f.name),
                   subtitle: Text(_summary(f)),
                   onTap: () => editCustomFood(context, food: f),
-                  trailing: IconButton(icon: const Icon(Icons.add_circle_outline), tooltip: 'Log', onPressed: () => logFoodToday(context, f)),
+                  trailing: IconButton(icon: const Icon(LucideIcons.circlePlus), tooltip: 'Log', onPressed: () => logFoodToday(context, f)),
                 ),
             ]),
     );
@@ -189,7 +190,7 @@ class _CustomFoodEditorState extends State<CustomFoodEditor> {
         actions: [
           if (widget.food != null)
             IconButton(
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(LucideIcons.trash2),
               tooltip: 'Delete',
               onPressed: () async {
                 final ok = await confirmDialog(context, 'Delete “${widget.food!.name}”?', 'Diary entries that use it are kept.');
@@ -203,7 +204,7 @@ class _CustomFoodEditorState extends State<CustomFoodEditor> {
       ),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 48), children: [
         if (_error != null)
-          Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_error!, style: const TextStyle(color: Palette.danger))),
+          Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_error!, style: TextStyle(color: context.du.danger))),
         TextField(controller: _name, autofocus: widget.food == null, decoration: const InputDecoration(labelText: 'Name')),
         const SizedBox(height: 12),
         TextField(controller: _brand, decoration: const InputDecoration(labelText: 'Brand (optional)')),
@@ -232,7 +233,7 @@ class _CustomFoodEditorState extends State<CustomFoodEditor> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.remove_circle_outline),
+                icon: const Icon(LucideIcons.circleMinus),
                 tooltip: 'Remove serving',
                 onPressed: _servings.length == 1 ? null : () => setState(() => _servings.removeAt(i)),
               ),
@@ -241,7 +242,7 @@ class _CustomFoodEditorState extends State<CustomFoodEditor> {
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
-            icon: const Icon(Icons.add),
+            icon: const Icon(LucideIcons.plus),
             label: const Text('Add serving size'),
             onPressed: () => setState(() => _servings.add(_ServingRow('', 0))),
           ),
@@ -258,7 +259,7 @@ class _CustomFoodEditorState extends State<CustomFoodEditor> {
         const SizedBox(height: 8),
         for (final group in NutrientGroup.values)
           if (editable.where((d) => d.group == group).toList() case final defs when defs.isNotEmpty) ...[
-            if (_showAll) Padding(padding: const EdgeInsets.only(top: 12, bottom: 4), child: Text(group.label, style: const TextStyle(fontWeight: FontWeight.w700))),
+            if (_showAll) Padding(padding: const EdgeInsets.only(top: 12, bottom: 4), child: Text(group.label, style: const TextStyle(fontWeight: FontWeight.w600))),
             for (final d in defs)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),

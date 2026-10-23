@@ -8,22 +8,27 @@ import '../data/nutrients.dart';
 import '../logic/foods.dart';
 import 'theme.dart';
 
-/// A horizontal progress bar with its percentage printed inside.
+/// A horizontal progress bar with its percentage printed inside. Gray while it fills; the accent once a target is met;
+/// danger once a limit is passed ([over]). A limit ([isLimit]) stays gray until then.
 class ProgressBar extends StatelessWidget {
-  const ProgressBar({super.key, required this.fraction, required this.color, this.over = false, this.height = 16});
+  const ProgressBar({super.key, required this.fraction, this.isLimit = false, this.over = false, this.height = 16});
 
   final double fraction;
-  final Color color;
+  final bool isLimit;
   final bool over;
   final double height;
 
   @override
   Widget build(BuildContext context) {
+    final du = context.du;
     final pct = fraction.isFinite ? (fraction * 100).round() : 0;
+    final met = !isLimit && pct >= 100; // as printed, so "100%" is never gray
+    final fill = over ? du.danger : met ? du.accentStrong : du.dataNeutral;
+    final onFill = (over || met) && fraction >= 0.5;
     return Semantics(
       value: '$pct%',
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(6),
         child: SizedBox(
           height: height,
           child: Stack(fit: StackFit.expand, children: [
@@ -31,15 +36,17 @@ class ProgressBar extends StatelessWidget {
             FractionallySizedBox(
               alignment: Alignment.centerLeft,
               widthFactor: fraction.isFinite ? fraction.clamp(0, 1) : 0,
-              child: ColoredBox(color: over ? Palette.danger : color),
+              child: ColoredBox(color: fill),
             ),
             Center(
               child: Text('$pct%',
-                  style: TextStyle(
+                  style: context.text.labelSmall?.copyWith(
                     fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    color: Theme.of(context).colorScheme.onSurface,
-                    shadows: [Shadow(color: Theme.of(context).colorScheme.surface, blurRadius: 3)],
+                    height: 1,
+                    letterSpacing: 0,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: tabular,
+                    color: onFill ? (over ? du.surface : du.onAccent) : du.ink,
                   )),
             ),
           ]),
@@ -128,10 +135,10 @@ class MacroDonut extends StatelessWidget {
         size: size,
         stroke: size / 7,
         total: total,
-        segments: [for (final p in parts) RingSegment(p.kcal, Palette.macro(p.key))],
+        segments: [for (final p in parts) RingSegment(p.kcal, context.du.macro(p.key))],
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(formatAmount(nutrients['energy'] ?? 0, 'kcal'), style: context.text.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          Text('kcal', style: context.text.labelSmall?.copyWith(color: context.muted)),
+          Text(formatAmount(nutrients['energy'] ?? 0, 'kcal'), style: context.text.titleLarge?.copyWith(fontWeight: FontWeight.w300, fontFeatures: tabular)),
+          Text('kcal', style: context.text.labelSmall),
         ]),
       ),
       const SizedBox(width: 18),
@@ -141,13 +148,13 @@ class MacroDonut extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: Row(children: [
-                Container(width: 10, height: 10, decoration: BoxDecoration(color: Palette.macro(p.key), borderRadius: BorderRadius.circular(3))),
+                Container(width: 10, height: 10, decoration: BoxDecoration(color: context.du.macro(p.key), borderRadius: BorderRadius.circular(3))),
                 const SizedBox(width: 8),
                 Expanded(child: Text(macroLabels[p.key]!)),
-                Text(total > 0 ? '${(p.kcal / total * 100).round()}%' : '0%', style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text(total > 0 ? '${(p.kcal / total * 100).round()}%' : '0%', style: const TextStyle(fontWeight: FontWeight.w500, fontFeatures: tabular)),
                 SizedBox(
                   width: 64,
-                  child: Text('${formatAmount(nutrients[p.key] ?? 0)} g', textAlign: TextAlign.right, style: TextStyle(color: context.muted)),
+                  child: Text('${formatAmount(nutrients[p.key] ?? 0)} g', textAlign: TextAlign.right, style: TextStyle(color: context.muted, fontFeatures: tabular)),
                 ),
               ]),
             ),
@@ -157,7 +164,7 @@ class MacroDonut extends StatelessWidget {
   }
 }
 
-/// Product photo for Open Food Facts items, a coloured initial otherwise.
+/// Product photo for Open Food Facts items, an initial on a sunk tile otherwise.
 class FoodThumb extends StatelessWidget {
   const FoodThumb({super.key, required this.food, this.size = 40});
 
@@ -168,20 +175,15 @@ class FoodThumb extends StatelessWidget {
   Widget build(BuildContext context) {
     final f = food;
     final url = f?.imageUrl;
-    final color = switch (f?.source) {
-      FoodSource.cnf => Palette.protein,
-      FoodSource.recipe => Palette.carbs,
-      FoodSource.custom => Palette.minerals,
-      _ => Palette.limit,
-    };
+    final du = context.du;
     final letter = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: du.sunk, borderRadius: BorderRadius.circular(8)),
       child: Text(
         (f?.name.isNotEmpty ?? false) ? f!.name.characters.first.toUpperCase() : '?',
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        style: TextStyle(fontFamily: titleFont, fontSize: size * 0.42, fontWeight: FontWeight.w500, color: du.inkSecondary),
       ),
     );
     if (url == null) return letter;
@@ -190,7 +192,7 @@ class FoodThumb extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
-        color: Colors.white,
+        color: Colors.white, // product photos are shot on white
         child: Image.network(url, fit: BoxFit.contain, errorBuilder: (_, _, _) => letter),
       ),
     );
@@ -204,16 +206,11 @@ class SourceBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = switch (source) {
-      FoodSource.cnf => Palette.protein,
-      FoodSource.recipe => Palette.carbs,
-      FoodSource.custom => Palette.minerals,
-      FoodSource.off => Palette.energy,
-    };
+    final du = context.du;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(99)),
-      child: Text(source.short, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: color)),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(color: du.surface, borderRadius: BorderRadius.circular(999), border: Border.all(color: du.line, width: 0.6)),
+      child: Text(source.short, style: context.text.labelSmall?.copyWith(fontSize: 10.5, letterSpacing: 0, color: du.inkSecondary)),
     );
   }
 }
@@ -305,17 +302,15 @@ class SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+        padding: const EdgeInsets.fromLTRB(4, 24, 4, 10),
         child: Row(children: [
-          Expanded(
-            child: Text(text.toUpperCase(),
-                style: context.text.labelMedium?.copyWith(color: context.muted, letterSpacing: 0.6, fontWeight: FontWeight.w600)),
-          ),
+          Expanded(child: Text(text, style: context.text.labelLarge?.copyWith(color: context.muted))),
           ?trailing,
         ]),
       );
 }
 
+/// Asks before something destructive; the action is in the danger colour.
 Future<bool> confirmDialog(BuildContext context, String title, String body, {String action = 'Delete'}) async =>
     await showDialog<bool>(
       context: context,
@@ -324,7 +319,11 @@ Future<bool> confirmDialog(BuildContext context, String title, String body, {Str
         content: Text(body),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(action)),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: ctx.du.danger, foregroundColor: ctx.du.surface),
+            child: Text(action),
+          ),
         ],
       ),
     ) ??

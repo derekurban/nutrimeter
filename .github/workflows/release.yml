@@ -1,0 +1,178 @@
+# Releases. A push to staging (a merge from dev) builds the staging flavour; a push to main (a merge from staging)
+# builds prod. Either way the APK is signed with the release key and published as a GitHub release tagged
+# v<version>-<flavour>.<versionCode> carrying only that flavour's APK (nutrimeter-staging.apk or nutrimeter.apk).
+# Prod releases are marked latest; staging ones never are. Installed apps find the newest release carrying their own
+# APK and update themselves (lib/ui/updates.dart, AutoUpdater). The APK is arm64 only: every phone the app targets,
+# and it keeps ML Kit's native barcode libraries for other ABIs out of the download.
+#
+# <version> is pubspec.yaml's version name; versionCode = 100000 + this workflow's run number, so every build is
+# higher than the last and than any local build.
+#
+# Checks (analyze, test) and the APK build run side by side; a release waits for both. A failing check cancels the
+# run, so a broken build is never finished or published. A pull request into staging or main runs both without
+# releasing (the APK is kept as a run artifact); a push to dev runs only the checks.
+name: release
+
+on:
+  push:
+    branches: [dev, staging, main]
+  pull_request:
+    branches: [staging, main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  # A newer push supersedes a pull request's or dev's run; release builds always finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref_name == 'dev' }}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.5'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+  # A failing check cancels the build and release. A job of its own, so the check itself still reads as failed.
+  stop:
+    needs: check
+    if: failure() && github.ref_name != 'dev'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+
+  build:
+    if: github.ref_name != 'dev'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      TARGET: ${{ github.base_ref || github.ref_name }}
+      # The runner image's preinstalled NDK and CMake (android/app/build.gradle.kts); if the image drops them, Gradle
+      # downloads them as before.
+      ORG_GRADLE_PROJECT_ciNdkVersion: 29.0.14206865
+      ORG_GRADLE_PROJECT_ciCmakeVersion: 3.31.5
+    outputs:
+      flavor: ${{ steps.version.outputs.flavor }}
+      asset: ${{ steps.version.outputs.asset }}
+      code: ${{ steps.version.outputs.code }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.5'
+          channel: stable
+          cache: true
+
+      # Restores Gradle's dependencies and build cache (a warm build is ~3.5 min faster). Only release pushes write
+      # it, since saving costs ~30 s; pull requests read their target branch's.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name != 'push' }}
+
+      - name: Version
+        id: version
+        run: |
+          if [ "$TARGET" = main ]; then flavor=prod; asset=nutrimeter.apk; else flavor=staging; asset=nutrimeter-staging.apk; fi
+          full="$(grep -E '^version:' pubspec.yaml | sed 's/version: *//')"
+          name="${full%%+*}"
+          code=$(( 100000 + GITHUB_RUN_NUMBER ))
+          {
+            echo "flavor=$flavor"
+            echo "asset=$asset"
+            echo "name=$name"
+            echo "code=$code"
+            echo "tag=v$name-$flavor.$code"
+          } >> "$GITHUB_OUTPUT"
+          echo "$flavor $name build $code"
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          [ -n "$KEYSTORE_BASE64" ] || { echo "::error::KEYSTORE_BASE64 secret is missing"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
+
+      - run: flutter pub get
+
+      - name: Build
+        env:
+          FLAVOR: ${{ steps.version.outputs.flavor }}
+          ASSET: ${{ steps.version.outputs.asset }}
+        run: |
+          flutter build apk --release --flavor "$FLAVOR" --target-platform android-arm64 --build-name=${{ steps.version.outputs.name }} --build-number=${{ steps.version.outputs.code }}
+          cp "build/app/outputs/flutter-apk/app-$FLAVOR-release.apk" "$RUNNER_TEMP/$ASSET"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.flavor }}-${{ steps.version.outputs.code }}
+          path: ${{ runner.temp }}/${{ steps.version.outputs.asset }}
+
+  release:
+    needs: [check, build]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # tags and history for the release notes
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.flavor }}-${{ needs.build.outputs.code }}
+          path: ${{ runner.temp }}
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FLAVOR: ${{ needs.build.outputs.flavor }}
+          ASSET: ${{ needs.build.outputs.asset }}
+          TAG: ${{ needs.build.outputs.tag }}
+          CODE: ${{ needs.build.outputs.code }}
+        run: |
+          prev="$(git tag --list "v*-$FLAVOR.*" --sort=-creatordate | head -1)"
+          if [ -n "$prev" ]; then range="$prev..HEAD"; else range="-n 15 HEAD"; fi
+          {
+            echo "$FLAVOR build $CODE from \`${GITHUB_SHA::7}\` on $GITHUB_REF_NAME."
+            echo
+            git log $range --no-merges --format='- %s' | head -30
+          } > "$RUNNER_TEMP/notes.md"
+          if [ "$FLAVOR" = prod ]; then latest=--latest; else latest=--latest=false; fi
+          gh release create "$TAG" "$RUNNER_TEMP/$ASSET" $latest --target "$GITHUB_SHA" \
+            --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"

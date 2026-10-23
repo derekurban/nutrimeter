@@ -1,0 +1,26 @@
+# Opened from the app (Targets > Feedback, mobile/lib/logic/update.dart reportUrl) with the version filled in. URLs can
+# fill text fields only (not dropdowns), so the field the app fills stays an input; mobile/test/update_test.dart checks it.
+name: Suggest a feature
+description: An idea that would make tracking what you eat easier.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the idea. Suggestions here are public, so leave out anything personal.
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What you would like the app to do.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it would help
+      description: The moment it would have helped, or what it would make easier.
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Filled in when you suggest from the app.
