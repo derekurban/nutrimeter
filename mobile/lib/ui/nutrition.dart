@@ -28,10 +28,10 @@ class EnergySummary extends StatelessWidget {
               size: 112,
               stroke: 13,
               total: consumed > target ? consumed : target,
-              segments: [for (final p in parts) RingSegment(p.kcal, Palette.macro(p.key))],
+              segments: [for (final p in parts) RingSegment(p.kcal, context.du.macro(p.key))],
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text('${consumed.round()}', style: context.text.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-                Text('kcal eaten', style: context.text.labelSmall?.copyWith(color: context.muted)),
+                Text('${consumed.round()}', style: context.text.headlineMedium?.copyWith(fontWeight: FontWeight.w300, fontFeatures: tabular)),
+                Text('kcal eaten', style: context.text.labelSmall),
               ]),
             ),
             const SizedBox(width: 20),
@@ -40,16 +40,16 @@ class EnergySummary extends StatelessWidget {
                 _figure(context, 'Target', '${target.round()} kcal'),
                 const SizedBox(height: 6),
                 _figure(context, remaining >= 0 ? 'Remaining' : 'Over', '${remaining.abs().round()} kcal',
-                    color: remaining >= 0 ? Palette.ok : Palette.danger),
+                    color: remaining >= 0 ? context.du.accentText : context.du.danger),
                 const SizedBox(height: 10),
                 for (final p in parts)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 1.5),
                     child: Row(children: [
-                      Container(width: 9, height: 9, decoration: BoxDecoration(color: Palette.macro(p.key), borderRadius: BorderRadius.circular(3))),
+                      Container(width: 9, height: 9, decoration: BoxDecoration(color: context.du.macro(p.key), borderRadius: BorderRadius.circular(3))),
                       const SizedBox(width: 6),
                       Expanded(child: Text(macroLabels[p.key]!, style: context.text.bodySmall)),
-                      Text(macroKcal > 0 ? '${(p.kcal / macroKcal * 100).round()}%' : '0%', style: context.text.bodySmall),
+                      Text(macroKcal > 0 ? '${(p.kcal / macroKcal * 100).round()}%' : '0%', style: context.text.bodySmall?.copyWith(fontFeatures: tabular)),
                     ]),
                   ),
               ]),
@@ -64,7 +64,7 @@ class EnergySummary extends StatelessWidget {
 
   Widget _figure(BuildContext context, String label, String value, {Color? color}) => Row(children: [
         Expanded(child: Text(label, style: TextStyle(color: context.muted))),
-        Text(value, style: TextStyle(fontWeight: FontWeight.w700, color: color)),
+        Text(value, style: TextStyle(fontWeight: FontWeight.w500, color: color, fontFeatures: tabular)),
       ]);
 }
 
@@ -83,11 +83,11 @@ class _MacroTarget extends StatelessWidget {
       padding: const EdgeInsets.only(top: 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
-          Expanded(child: Text(def.label, style: const TextStyle(fontWeight: FontWeight.w600))),
-          Text('${formatAmount(value, def.unit)} / ${formatAmount(t, def.unit)} ${def.unit}', style: TextStyle(color: context.muted, fontSize: 12.5)),
+          Expanded(child: Text(def.label, style: const TextStyle(fontWeight: FontWeight.w500))),
+          Text('${formatAmount(value, def.unit)} / ${formatAmount(t, def.unit)} ${def.unit}', style: context.text.bodySmall?.copyWith(fontFeatures: tabular)),
         ]),
         const SizedBox(height: 4),
-        ProgressBar(fraction: t == null || t == 0 ? 0 : value / t, color: Palette.macro(nutrientKey), over: target.max != null && value > target.max!),
+        ProgressBar(fraction: t == null || t == 0 ? 0 : value / t, over: target.max != null && value > target.max!),
       ]),
     );
   }
@@ -104,12 +104,8 @@ class NutrientTargets extends StatelessWidget {
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         for (final group in NutrientGroup.values) ...[
           Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 6),
-            child: Row(children: [
-              Container(width: 4, height: 16, color: Palette.group(group)),
-              const SizedBox(width: 8),
-              Text(group.label, style: const TextStyle(fontWeight: FontWeight.w700)),
-            ]),
+            padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
+            child: Text(group.label, style: context.text.labelLarge?.copyWith(color: context.muted)),
           ),
           Card(
             child: Padding(
@@ -145,14 +141,14 @@ class _NutrientRow extends StatelessWidget {
         ),
         Expanded(
           flex: 3,
-          child: Text('${formatAmount(value, def.unit)} ${def.unit}', textAlign: TextAlign.right, style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()])),
+          child: Text('${formatAmount(value, def.unit)} ${def.unit}', textAlign: TextAlign.right, style: const TextStyle(fontFeatures: tabular)),
         ),
         const SizedBox(width: 12),
         Expanded(
           flex: 4,
           child: p == null
-              ? Text('no target', style: TextStyle(color: context.muted, fontSize: 12))
-              : ProgressBar(fraction: p.fraction, color: p.isLimit ? Palette.limit : Palette.group(def.group), over: p.over),
+              ? Text('no target', style: context.text.labelSmall)
+              : ProgressBar(fraction: p.fraction, isLimit: p.isLimit, over: p.over),
         ),
       ]),
     );
@@ -181,7 +177,7 @@ class NutritionPreview extends StatelessWidget {
                 child: Text(def.label, style: TextStyle(color: def.sub ? context.muted : null)),
               ),
             ),
-            Text('${formatAmount(amounts[def.key], def.unit)} ${def.unit}'),
+            Text('${formatAmount(amounts[def.key], def.unit)} ${def.unit}', style: const TextStyle(fontFeatures: tabular)),
             SizedBox(
               width: 52,
               child: Text(

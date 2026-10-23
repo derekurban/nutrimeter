@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/model.dart';
 import '../data/nutrients.dart';
@@ -169,7 +170,7 @@ class _FoodPickerPageState extends State<FoodPickerPage> {
               suffixIcon: _q.isEmpty
                   ? null
                   : IconButton(
-                      icon: const Icon(Icons.clear),
+                      icon: const Icon(LucideIcons.x),
                       tooltip: 'Clear',
                       onPressed: () {
                         _query.clear();
@@ -180,7 +181,7 @@ class _FoodPickerPageState extends State<FoodPickerPage> {
             onChanged: (s) => setState(() => _q = s),
             onSubmitted: (_) => _searchOff(),
           ),
-          actions: [IconButton(icon: const Icon(Icons.qr_code_scanner), tooltip: 'Scan barcode', onPressed: _scan)],
+          actions: [IconButton(icon: const Icon(LucideIcons.scanBarcode), tooltip: 'Scan barcode', onPressed: _scan)],
           bottom: const TabBar(isScrollable: true, tabAlignment: TabAlignment.start, tabs: [
             Tab(text: 'All'),
             Tab(text: 'History'),
@@ -229,7 +230,7 @@ class _FoodPickerPageState extends State<FoodPickerPage> {
       for (final f in generic) _FoodTile(food: f, onTap: () => _open(f)),
       const _Header('Packaged products · Open Food Facts'),
       if (_offError != null)
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text(_offError!, style: const TextStyle(color: Palette.danger))),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text(_offError!, style: TextStyle(color: context.du.danger))),
       if (offShown) ...[
         for (final f in _offFoods.where((f) => !widget.exclude.contains(f.id))) _FoodTile(food: f, onTap: () => _open(f)),
         if (!_offLoading && _offFoods.isEmpty && _offError == null)
@@ -245,7 +246,7 @@ class _FoodPickerPageState extends State<FoodPickerPage> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: OutlinedButton.icon(
-            icon: Icon(OpenFoodFacts.isBarcode(q) ? Icons.qr_code : Icons.search),
+            icon: Icon(OpenFoodFacts.isBarcode(q) ? LucideIcons.barcode : LucideIcons.search),
             label: Text(OpenFoodFacts.isBarcode(q) ? 'Look up barcode $q' : 'Search Open Food Facts for “$q”'),
             onPressed: _searchOff,
           ),

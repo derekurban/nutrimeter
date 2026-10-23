@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   mobile_scanner: ^7.4.2
   http: ^1.6.0
+  lucide_icons_flutter: ^3.1.25
   path_provider: ^2.1.6
 
 dev_dependencies:
@@ -62,6 +63,27 @@ flutter:
 
   assets:
     - assets/cnf/foods.json
+  # The design system's type (derekurban/design-system v0.1.0, as in easyday): Albert Sans for titles, Wix Madefor
+  # Text for everything else. OFL; the licences sit beside the fonts.
+  fonts:
+    - family: Albert Sans
+      fonts:
+        - asset: assets/fonts/AlbertSans-300.ttf
+          weight: 300
+        - asset: assets/fonts/AlbertSans-400.ttf
+          weight: 400
+        - asset: assets/fonts/AlbertSans-500.ttf
+          weight: 500
+        - asset: assets/fonts/AlbertSans-600.ttf
+          weight: 600
+    - family: Wix Madefor Text
+      fonts:
+        - asset: assets/fonts/WixMadeforText-400.ttf
+          weight: 400
+        - asset: assets/fonts/WixMadeforText-500.ttf
+          weight: 500
+        - asset: assets/fonts/WixMadeforText-600.ttf
+          weight: 600
 
   # To add assets to your application, add an assets section, like this:
   # assets:
