@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/model.dart';
 import '../data/nutrients.dart';
@@ -97,7 +98,7 @@ class _DiaryPageState extends State<DiaryPage> {
       appBar: AppBar(
         titleSpacing: 4,
         title: Row(children: [
-          IconButton(icon: const Icon(Icons.chevron_left), tooltip: 'Previous day', onPressed: () => setState(() => _date = addDays(_date, -1))),
+          IconButton(icon: const Icon(LucideIcons.chevronLeft), tooltip: 'Previous day', onPressed: () => setState(() => _date = addDays(_date, -1))),
           Expanded(
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
@@ -112,11 +113,11 @@ class _DiaryPageState extends State<DiaryPage> {
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Text(_title(), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700)),
+                child: Text(_title(), textAlign: TextAlign.center, style: context.text.titleLarge),
               ),
             ),
           ),
-          IconButton(icon: const Icon(Icons.chevron_right), tooltip: 'Next day', onPressed: () => setState(() => _date = addDays(_date, 1))),
+          IconButton(icon: const Icon(LucideIcons.chevronRight), tooltip: 'Next day', onPressed: () => setState(() => _date = addDays(_date, 1))),
         ]),
         actions: [
           if (_date != _today) TextButton(onPressed: () => setState(() => _date = _today), child: const Text('Today')),
@@ -127,12 +128,16 @@ class _DiaryPageState extends State<DiaryPage> {
           heroTag: 'scan',
           tooltip: 'Scan barcode',
           onPressed: () => _add(MealLabel.forTime(DateTime.now()), scan: true),
-          child: const Icon(Icons.qr_code_scanner),
+          child: const Icon(LucideIcons.scanBarcode),
         ),
         const SizedBox(width: 12),
         FloatingActionButton.extended(
           heroTag: 'add',
-          icon: const Icon(Icons.add),
+          // the view's one accent-filled button: its main action
+          backgroundColor: context.du.accentStrong,
+          foregroundColor: context.du.onAccent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          icon: const Icon(LucideIcons.plus),
           label: const Text('Log food'),
           onPressed: () => _add(MealLabel.forTime(DateTime.now())),
         ),
@@ -177,7 +182,7 @@ class _MealCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 0, 0),
             child: Row(children: [
-              Text(meal.label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              Text(meal.label, style: context.text.titleLarge),
               const SizedBox(width: 10),
               if (entries.isNotEmpty)
                 Expanded(
@@ -203,8 +208,8 @@ class _MealCard extends StatelessWidget {
           for (final e in entries) _EntryTile(entry: e, onTap: () => onEdit(e), onRemove: () => onRemove(e)),
           ListTile(
             dense: true,
-            leading: const Icon(Icons.add, color: Palette.accent),
-            title: Text('Add to ${meal.label.toLowerCase()}', style: const TextStyle(color: Palette.accent, fontWeight: FontWeight.w600)),
+            leading: Icon(LucideIcons.plus, color: context.du.accentText),
+            title: Text('Add to ${meal.label.toLowerCase()}', style: TextStyle(color: context.du.accentText, fontWeight: FontWeight.w500)),
             onTap: onAdd,
           ),
         ]),
@@ -229,10 +234,10 @@ class _EntryTile extends StatelessWidget {
       key: ValueKey(entry.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        color: Palette.danger,
+        color: context.du.danger,
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
+        child: Icon(LucideIcons.trash2, color: context.du.surface),
       ),
       onDismissed: (_) => onRemove(),
       child: ListTile(

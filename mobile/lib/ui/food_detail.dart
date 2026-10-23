@@ -95,7 +95,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
           const SizedBox(width: 14),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_food.name, style: context.text.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+              Text(_food.name, style: context.text.headlineMedium),
               if (_food.brand != null) Text(_food.brand!, style: TextStyle(color: context.muted)),
               if (_food.barcode != null) Text(_food.barcode!, style: TextStyle(color: context.muted, fontSize: 12)),
             ]),
@@ -107,7 +107,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
           Container(
             margin: const EdgeInsets.only(top: 12),
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Palette.vitamins.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(color: context.du.warningSubtle, borderRadius: BorderRadius.circular(10), border: Border.all(color: context.du.warningLine, width: 0.6)),
             child: const Text('Open Food Facts has no nutrition data for this product yet. Add it as a custom food instead.'),
           ),
         const SizedBox(height: 18),

@@ -2,8 +2,12 @@
     <!-- Open Food Facts lookups; the template only grants this to debug builds. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- In-app updates (lib/ui/updates.dart): install a downloaded release over this app -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- Android 12+: with this, an update this app installs over itself needs no confirm once it is the installer of record -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION"/>
     <application
-        android:label="Nutrimeter"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -28,6 +32,9 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Hears how an in-app update's install session ended (UpdateReceiver.kt). -->
+        <receiver android:name=".UpdateReceiver" android:exported="false"/>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

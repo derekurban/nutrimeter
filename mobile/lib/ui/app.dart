@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/store.dart';
 import 'custom_foods.dart';
@@ -6,6 +7,7 @@ import 'diary.dart';
 import 'recipes.dart';
 import 'settings.dart';
 import 'theme.dart';
+import 'updates.dart';
 
 class NutrimeterApp extends StatelessWidget {
   const NutrimeterApp({super.key, required this.state});
@@ -20,7 +22,7 @@ class NutrimeterApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: buildTheme(Brightness.light),
           darkTheme: buildTheme(Brightness.dark),
-          home: const HomeShell(),
+          home: const AutoUpdater(child: HomeShell()),
         ),
       );
 }
@@ -60,11 +62,27 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           selectedIndex: _tab,
           onDestinationSelected: (i) => setState(() => _tab = i),
           destinations: const [
-            NavigationDestination(icon: Icon(Icons.today_outlined), selectedIcon: Icon(Icons.today), label: 'Diary'),
-            NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Recipes'),
-            NavigationDestination(icon: Icon(Icons.egg_alt_outlined), selectedIcon: Icon(Icons.egg_alt), label: 'Foods'),
-            NavigationDestination(icon: Icon(Icons.track_changes_outlined), selectedIcon: Icon(Icons.track_changes), label: 'Targets'),
+            NavigationDestination(icon: Icon(LucideIcons.calendarDays), selectedIcon: Icon(LucideIcons.calendarDays), label: 'Diary'),
+            NavigationDestination(icon: Icon(LucideIcons.bookOpen), selectedIcon: Icon(LucideIcons.bookOpen), label: 'Recipes'),
+            NavigationDestination(icon: Icon(LucideIcons.apple), selectedIcon: Icon(LucideIcons.apple), label: 'Foods'),
+            NavigationDestination(icon: _Marked(Icon(LucideIcons.target)), selectedIcon: _Marked(Icon(LucideIcons.target)), label: 'Targets'),
           ],
         ),
+      );
+}
+
+/// A tab icon with the update dot while a newer build waits (the Updates panel is in Settings, on this tab).
+class _Marked extends StatelessWidget {
+  const _Marked(this.icon);
+
+  final Widget icon;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder(
+        valueListenable: updateAvailable,
+        builder: (context, r, _) => Stack(clipBehavior: Clip.none, children: [
+          icon,
+          if (r != null) const Positioned(top: -2, right: -4, child: UpdateDot()),
+        ]),
       );
 }

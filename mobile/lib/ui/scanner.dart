@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -68,13 +69,13 @@ class _ScannerPageState extends State<ScannerPage> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(children: [
               IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
+                icon: const Icon(LucideIcons.x, color: Colors.white),
                 tooltip: 'Close',
                 onPressed: () => Navigator.of(context).pop(),
               ),
               const Expanded(child: Text('Scan a barcode', style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600))),
               IconButton(
-                icon: Icon(_torch ? Icons.flash_on : Icons.flash_off, color: Colors.white),
+                icon: Icon(_torch ? LucideIcons.flashlight : LucideIcons.flashlightOff, color: Colors.white),
                 tooltip: 'Torch',
                 onPressed: () async {
                   await _controller.toggleTorch();
@@ -110,7 +111,7 @@ class _WindowPainter extends CustomPainter {
     canvas.drawRRect(r, Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
-      ..color = Palette.accent);
+      ..color = Du.dark.accentStrong);
   }
 
   @override

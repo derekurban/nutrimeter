@@ -11,7 +11,8 @@ targets, and custom recipes and foods. Everything stays on your phone; no accoun
   and stay under a self-imposed cap below OFF's per-user limits. Products you pick are saved with your data.
 
 **Android app:** `mobile/` is the Flutter app (Android and iOS projects; Android is what's built and tested).
-Its layout, dev loop and builds are in `mobile/README.md`.
+Its layout, dev loop, builds and releases are in `mobile/README.md`. Releases (signed APKs) are on the
+[releases page](https://github.com/derekurban/nutrimeter/releases); the installed app updates itself.
 
 ## Layout
 
@@ -21,6 +22,7 @@ Its layout, dev loop and builds are in `mobile/README.md`.
 | `tool/gen_cnf.py` | Builds `mobile/assets/cnf/foods.json` from the CNF download (stdlib Python) |
 | `data/cnf/` | CNF source notes: version, licence, nutrient mapping, judgement calls (`README.md`); `raw/` holds the download and is git-ignored |
 | `prototype/` | The first web prototype (React + Vite) the app was designed from |
+| `.github/` | `workflows/release.yml` (staging and prod releases on merge) and the issue forms the app's feedback opens |
 
 ## Regenerate the CNF asset
 
@@ -28,9 +30,12 @@ Its layout, dev loop and builds are in `mobile/README.md`.
 python -I tool/gen_cnf.py            # downloads the 2026 CNF zip into data/cnf/raw/ if missing
 ```
 
-## Branches
+## Branches and releases
 
-Work lands on `dev`; `main` is what's released.
+Work lands on `dev`. Merging `dev` into `staging` builds and publishes a staging release on GitHub; merging `staging`
+into `main` does the same for prod (`.github/workflows/release.yml`). Installed apps find the newest release for their
+flavour and update themselves. Open a pull request for each merge: it runs the same build as a check, and the merge
+publishes. Details: `mobile/README.md`, "Builds, releases and updates".
 
 ## Licences
 
