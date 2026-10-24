@@ -3,8 +3,9 @@
 Status: built, 2026-10-23. Where submissions, photos, reviews and the published catalogue live, and why
 Supabase over Convex.
 
-**Decided:** Supabase, with no server of our own. The app talks to Supabase directly; review happens on a
-local website (`admin/`) that drives the local Codex app server. The main project is `vkhnbxizgnyfmnfphrmk`
+**Decided:** Supabase, with no server of our own. The app talks to Supabase directly. Review happens in
+Nutrimeter Admin (the private repo `derekurban/nutrimeter-admin`). It is a server on the desktop that drives the
+local Codex app server, with a web console there and a phone app that reaches it over Tailscale. The main project is `vkhnbxizgnyfmnfphrmk`
 (Canada Central, Pro plan) and development happens on its persistent `dev` branch (`enbylsacypvbzzdoapyg`).
 Credentials live in `~/.keys/nutrimeter/`, never in the repo.
 
@@ -80,19 +81,23 @@ Rules the database enforces:
 - **App (Flutter):** signs in as you (email and password; sign-ups are off, the account is created on the review
   site). Submits the barcode, photos and hints straight to Supabase, logs the provisional food at once, and
   syncs the published catalogue for offline use. CNF stays bundled.
-- **Review site (`admin/`, localhost only):** the queue, the photos beside each AI reading, and the decision.
+- **Nutrimeter Admin (desktop server; console on localhost, phone app over Tailscale):** the queue, the photos
+  beside each AI reading, and the decision.
   **Start AI review** runs a thread on the local Codex app server: the photos and the taxonomy go into a scratch
   folder, and the answer must match the extraction schema, whose category field only accepts existing
   categories or null. The site validates and derives everything, then records the attempt. Accept publishes;
-  reject needs a comment, which the next attempt reads. See `admin/README.md`.
+  reject needs a comment, which the next attempt reads. See that repo's README.
 - **No GitHub issues.** The queue is the `submissions` table.
 
 ## Environments
 
 | | Supabase | Used by |
 |---|---|---|
-| dev | `dev` branch (`enbylsacypvbzzdoapyg`) | debug and staging builds; `npm start` in `admin/`; database tests |
-| prod | main project (`vkhnbxizgnyfmnfphrmk`) | prod builds; `NUTRIMETER_ENV=prod npm start` |
+| dev | `dev` branch (`enbylsacypvbzzdoapyg`) | debug builds; database tests |
+| staging | `staging` branch (`xtcutyizsdmswptesyaq`) | staging releases |
+| prod | main project (`vkhnbxizgnyfmnfphrmk`) | prod releases |
+
+Nutrimeter Admin switches between all three.
 
 Migrations in `supabase/migrations/` go to the dev branch first, then to the main project.
 

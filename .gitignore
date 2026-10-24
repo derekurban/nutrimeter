@@ -2,4 +2,3 @@ data/cnf/raw/
 __pycache__/
 node_modules/
 .venv/
-admin/dist/

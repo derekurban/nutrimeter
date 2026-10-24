@@ -11,8 +11,9 @@ account on Supabase carries product photos to review and brings the reviewed cat
   the package (front, Nutrition Facts table, ingredients) and log the product by weight straight away; once its
   label is reviewed, its nutrition fills in under the same food. Signing in (optional, Targets → Food review) sends
   the photos for review and syncs the reviewed catalogue to the phone, where it works offline. Design:
-  `docs/food-model/`. Reviews happen on a local site (`admin/`) where Codex reads the label and draws the food's
-  illustration, and a person accepts or rejects every product; photos, readings and decisions are kept for good.
+  `docs/food-model/`. Reviews happen in Nutrimeter Admin, a separate, private desktop server and phone app, where
+  Codex reads the label and draws the taxonomy's illustrations. A person accepts or rejects every product. Photos,
+  readings and decisions are kept for good.
 
 **Android app:** `mobile/` is the Flutter app (Android and iOS projects; Android is what's built and tested).
 Its layout, dev loop, builds and releases are in `mobile/README.md`. Releases (signed APKs) are on the
@@ -23,7 +24,6 @@ Its layout, dev loop, builds and releases are in `mobile/README.md`. Releases (s
 | Path | What |
 |---|---|
 | `mobile/` | The Flutter app: `lib/` code, `test/`, `assets/cnf/foods.json` (generated) |
-| `admin/` | The local review site: queue, AI review through the Codex app server, accept or reject (`admin/README.md`) |
 | `supabase/` | Database schema, access rules and pipeline functions (`migrations/`), project config |
 | `docs/food-model/` | The food model, measurements, backend and the stress test behind them |
 | `tool/gen_cnf.py` | Builds `mobile/assets/cnf/foods.json` from the CNF download (stdlib Python) |
