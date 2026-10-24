@@ -2,28 +2,58 @@ import 'dart:math';
 
 import 'nutrients.dart';
 
-/// Where a food comes from. Ids are `<source>:<id>`, e.g. `off:3017624010701` or `cnf:1234`.
-enum FoodSource { off, cnf, custom, recipe }
+/// Where a food comes from. The source is never shown as a provider name: the user sees a food, its brand and its
+/// numbers. Ids: `cnf:<code>`, `custom:<id>`, `recipe:<id>`, catalogue records `gtin:<14 digits>` and `food:<slug>`,
+/// and provisional foods `gtin:<14 digits>` (a scanned barcode) or `pending:<uuid>` (a search miss).
+enum FoodSource {
+  /// Open Food Facts, which the app no longer uses. Kept only so foods saved by older versions still load; they
+  /// behave like provisional foods and are never created again.
+  off,
+  cnf,
+  custom,
+  recipe,
+
+  /// A reviewed record from the food catalogue, synced from the backend.
+  catalogue,
+
+  /// A product added from photos that is waiting for review: logged by weight until its nutrition is published
+  /// under the same id.
+  provisional,
+}
 
 extension FoodSourceLabel on FoodSource {
   String get label => switch (this) {
-        FoodSource.off => 'Open Food Facts',
         FoodSource.cnf => 'Canadian Nutrient File',
         FoodSource.custom => 'Custom',
         FoodSource.recipe => 'Recipe',
+        FoodSource.catalogue => 'Reviewed food',
+        FoodSource.off || FoodSource.provisional => 'Awaiting review',
       };
 
   String get short => switch (this) {
-        FoodSource.off => 'OFF',
         FoodSource.cnf => 'CNF',
         FoodSource.custom => 'Custom',
         FoodSource.recipe => 'Recipe',
+        FoodSource.catalogue => 'Reviewed',
+        FoodSource.off || FoodSource.provisional => 'New',
       };
+
+  /// Not reviewed yet: its nutrition (if any) fills in once the product is published under the same id.
+  bool get isProvisional => this == FoodSource.off || this == FoodSource.provisional;
 }
 
 final _random = Random.secure();
 
 String newId() => List.generate(16, (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
+
+/// A random (version 4) UUID, e.g. for a submission and its `pending:` food id.
+String uuidV4() {
+  final b = List.generate(16, (_) => _random.nextInt(256));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  final h = [for (final x in b) x.toRadixString(16).padLeft(2, '0')].join();
+  return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20)}';
+}
 
 Map<String, double> _nutrientsFromJson(Object? json) =>
     {for (final e in ((json as Map?) ?? const {}).entries) e.key as String: (e.value as num).toDouble()};
@@ -66,7 +96,8 @@ class Food {
   /// Food-specific servings; grams and ounces are always offered on top of these.
   final List<Serving> servings;
 
-  /// OFF search hits carry only macros; the full product is fetched when one is picked.
+  /// False for a partial record that a fuller copy of the same food may replace (kept for data saved by older
+  /// versions, whose search hits carried only macros).
   final bool complete;
 
   /// Soft-deleted: hidden from pickers, still resolvable for old diary entries.

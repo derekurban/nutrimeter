@@ -164,7 +164,8 @@ class MacroDonut extends StatelessWidget {
   }
 }
 
-/// Product photo for Open Food Facts items, an initial on a sunk tile otherwise.
+/// A catalogue food's picture (its category's, else its subgroup's, else its group's; or a product photo saved by an
+/// older version), an initial on a sunk tile otherwise, and while offline.
 class FoodThumb extends StatelessWidget {
   const FoodThumb({super.key, required this.food, this.size = 40});
 
@@ -192,7 +193,8 @@ class FoodThumb extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
-        color: Colors.white, // product photos are shot on white
+        // Old product photos were shot on white; the taxonomy pictures sit on the sunk tile like the initials.
+        color: f?.source == FoodSource.off ? Colors.white : du.sunk,
         child: Image.network(url, fit: BoxFit.contain, errorBuilder: (_, _, _) => letter),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/store.dart';
+import '../services/backend.dart';
 import 'custom_foods.dart';
 import 'diary.dart';
 import 'recipes.dart';
@@ -49,10 +50,12 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // Flush pending writes when the app goes to the background.
+  // Flush pending writes when the app goes to the background; send pending uploads and sync the catalogue when it
+  // comes back (at most every half hour, but every time while products captured here wait for review).
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
     if (s == AppLifecycleState.paused || s == AppLifecycleState.detached) AppScope.read(context).save();
+    if (s == AppLifecycleState.resumed) Backend.sync(AppScope.read(context));
   }
 
   @override

@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Open Food Facts lookups; the template only grants this to debug builds. -->
+    <!-- Food review (Supabase) and update checks; the template only grants this to debug builds. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Barcode scanning (mobile_scanner). Because it is declared, image_picker asks for it before taking label photos. -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <!-- In-app updates (lib/ui/updates.dart): install a downloaded release over this app -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
@@ -50,6 +51,10 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Label photos (image_picker) hand off to the camera app. -->
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE"/>
         </intent>
     </queries>
 </manifest>
