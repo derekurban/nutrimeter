@@ -3,11 +3,22 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../logic/barcode.dart';
 import 'theme.dart';
 
-/// Full-screen camera that returns the first EAN/UPC barcode it reads, or null if closed.
-Future<String?> scanBarcode(BuildContext context) =>
-    Navigator.of(context).push<String>(MaterialPageRoute(fullscreenDialog: true, builder: (_) => const ScannerPage()));
+/// Full-screen camera that returns the first retail barcode (EAN-13, UPC-A, EAN-8, UPC-E, ITF-14) it reads with a
+/// valid check digit, normalised to a GTIN-14, or null if closed. Misreads are ignored and scanning goes on.
+Future<Gtin?> scanBarcode(BuildContext context) =>
+    Navigator.of(context).push<Gtin>(MaterialPageRoute(fullscreenDialog: true, builder: (_) => const ScannerPage()));
+
+Symbology symbologyOf(BarcodeFormat f) => switch (f) {
+      BarcodeFormat.ean13 => Symbology.ean13,
+      BarcodeFormat.ean8 => Symbology.ean8,
+      BarcodeFormat.upcA => Symbology.upca,
+      BarcodeFormat.upcE => Symbology.upce,
+      BarcodeFormat.itf14 => Symbology.itf14,
+      _ => Symbology.unknown,
+    };
 
 class ScannerPage extends StatefulWidget {
   const ScannerPage({super.key});
@@ -18,7 +29,7 @@ class ScannerPage extends StatefulWidget {
 
 class _ScannerPageState extends State<ScannerPage> {
   final _controller = MobileScannerController(
-    formats: const [BarcodeFormat.ean13, BarcodeFormat.ean8, BarcodeFormat.upcA, BarcodeFormat.upcE],
+    formats: const [BarcodeFormat.ean13, BarcodeFormat.ean8, BarcodeFormat.upcA, BarcodeFormat.upcE, BarcodeFormat.itf14],
     detectionSpeed: DetectionSpeed.noDuplicates,
   );
   bool _done = false;
@@ -33,8 +44,9 @@ class _ScannerPageState extends State<ScannerPage> {
   void _onDetect(BarcodeCapture capture) {
     if (_done) return;
     for (final b in capture.barcodes) {
-      final code = b.rawValue;
-      if (code != null && RegExp(r'^\d{8,14}$').hasMatch(code)) {
+      final raw = b.rawValue;
+      final code = raw == null ? null : normalizeBarcode(raw, symbologyOf(b.format));
+      if (code != null) {
         _done = true;
         HapticFeedback.mediumImpact();
         Navigator.of(context).pop(code);

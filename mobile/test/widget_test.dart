@@ -36,4 +36,28 @@ void main() {
     expect(find.text('Protein bar'), findsOneWidget);
     expect(find.text('240 kcal'), findsOneWidget);
   });
+
+  testWidgets('a search miss offers to add the product from photos', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.5;
+    addTearDown(tester.view.reset);
+
+    final state = AppState.memory();
+    await tester.pumpWidget(NutrimeterApp(state: state));
+    await tester.tap(find.text('Log food'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'zzqx crackers');
+    await tester.pumpAndSettle();
+    expect(find.text('Add a product'), findsOneWidget);
+
+    await tester.tap(find.text('Add a product'));
+    await tester.pumpAndSettle();
+    expect(find.text('Front'), findsOneWidget);
+    expect(find.text('Nutrition Facts table'), findsOneWidget);
+    // The search becomes the name hint; nothing can be saved until the front and nutrition photos are in.
+    expect(find.widgetWithText(TextField, 'zzqx crackers'), findsOneWidget);
+    final save = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Add the front and nutrition photos'));
+    expect(save.onPressed, isNull);
+    expect(find.textContaining('You are not signed in'), findsOneWidget);
+  });
 }

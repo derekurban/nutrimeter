@@ -7,6 +7,7 @@ import '../data/nutrients.dart';
 import '../data/store.dart';
 import '../logic/targets.dart';
 import '../version.dart';
+import 'review.dart';
 import 'theme.dart';
 import 'updates.dart';
 import 'widgets.dart';
@@ -14,7 +15,7 @@ import 'widgets.dart';
 /// The Updates section, for the banner's "Go to update".
 final _updates = GlobalKey();
 
-/// Profile, energy and macro targets, per-nutrient overrides, data, updates, feedback and attribution.
+/// Profile, energy and macro targets, per-nutrient overrides, food review, data, updates, feedback and attribution.
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
@@ -153,6 +154,8 @@ class SettingsPage extends StatelessWidget {
               ]),
             ),
           ],
+          const SectionTitle('Food review'),
+          const FoodReviewCard(),
           const SectionTitle('Your data'),
           Card(
             clipBehavior: Clip.antiAlias,
@@ -204,12 +207,6 @@ class SettingsPage extends StatelessWidget {
           const SectionTitle('About'),
           Text('$appName $appVersion · open source under GPL-3.0\n$repoUrl', style: TextStyle(color: context.muted)),
           const SizedBox(height: 10),
-          Text(
-            'Packaged food data © Open Food Facts contributors, available under the Open Database License (ODbL). '
-            'Product images under CC BY-SA.',
-            style: TextStyle(color: context.muted, fontSize: 12.5),
-          ),
-          const SizedBox(height: 8),
           Text(
             '${state.cnf.attribution.isEmpty ? 'Canadian Nutrient File, Health Canada.' : state.cnf.attribution} '
             'Omega-3 and omega-6 totals are summed from individual fatty acids; values are rounded to 4 significant digits.',
