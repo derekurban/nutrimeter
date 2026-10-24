@@ -158,6 +158,34 @@ void main() {
       expect(catalogueFood(const CatalogueRecord(id: 'food:x', role: 'generic', data: {'name': ' '}), null, 'My granola').name, 'My granola');
     });
 
+    test('a published CNF food is the CNF food, found through CNF search rather than among products', () {
+      const banana = CatalogueRecord(id: 'cnf:1704', role: 'generic', categoryId: 'eggs-and-omelets', data: {
+        'name': 'Banana, raw',
+        'name_fr': 'Banane, crue',
+        'brand': null,
+        'default_profile': 'as-sold',
+        'profiles': [
+          {
+            'id': 'as-sold',
+            'per_100g': {'energy': 89, 'carbs': 22.84},
+            'portions': [
+              {'label': '1 medium', 'grams': 118},
+            ],
+          },
+        ],
+      });
+      final base = sample();
+      final c = Catalogue(records: [...base.records, banana], aliases: base.aliases, taxonomy: base.taxonomy);
+      final f = c.food('cnf:1704')!;
+      expect(f.source, FoodSource.cnf);
+      expect(f.brand, 'Banane, crue', reason: 'the French name, as the bundled CNF shows it');
+      expect(f.nutrients, {'energy': 89.0, 'carbs': 22.84});
+      expect([for (final s in f.servings) (s.label, s.grams)], [('1 medium', 118.0)]);
+      expect(f.imageUrl, '$art/categories/eggs-and-omelets.webp');
+      expect(c.search('banana'), isEmpty);
+      expect(c.categoryLabel('cnf:1704'), 'Protein Foods › Eggs › Eggs and omelets');
+    });
+
     test('where a record is filed', () {
       final c = sample();
       expect(c.categoryLabel(eggsId), 'Protein Foods › Eggs › Eggs and omelets');

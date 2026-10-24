@@ -84,7 +84,7 @@ class Taxonomy {
 class CatalogueRecord {
   const CatalogueRecord({required this.id, required this.role, this.categoryId, required this.data});
 
-  /// `gtin:<14 digits>` or `food:<slug>`.
+  /// `gtin:<14 digits>`, `food:<slug>`, or `cnf:<code>` for a Canadian Nutrient File food published from the source.
   final String id;
 
   /// `product` or `generic`.
@@ -142,9 +142,11 @@ Food catalogueFood(CatalogueRecord r, [Taxonomy? taxonomy, String? fallbackName]
   final barcodes = _maps(d['barcodes']);
   return Food(
     id: r.id,
-    source: FoodSource.catalogue,
+    // A cnf: record is the bundled CNF food as published (filed under a category, so it has a picture).
+    source: r.id.startsWith('cnf:') ? FoodSource.cnf : FoodSource.catalogue,
     name: r.name ?? _text(fallbackName) ?? 'Unnamed product',
-    brand: _text(d['brand']),
+    // Like the bundled CNF, a published CNF food shows its French name where a product shows its brand.
+    brand: _text(d['brand']) ?? (r.id.startsWith('cnf:') ? _text(d['name_fr']) : null),
     imageUrl: taxonomy?.imageUrl(r.categoryId),
     barcode: gtinOfId(r.id) ?? (barcodes.isEmpty ? null : _text(barcodes.first['gtin'])),
     nutrients: values,
@@ -217,7 +219,8 @@ class Catalogue {
   }
 
   /// Records with every word of [query] as a word prefix of their name, brand, category, subgroup or group. Records
-  /// that match on name and brand alone come first.
+  /// that match on name and brand alone come first. Published CNF foods are left out: they are found through the
+  /// bundled CNF search, which shows their published version ([food]).
   List<Food> search(String query, {int limit = 40}) {
     final words = _words(query);
     if (words.isEmpty) return const [];
@@ -225,6 +228,7 @@ class Catalogue {
     final direct = <Food>[];
     final filed = <Food>[];
     for (final (food, own, taxa) in _index) {
+      if (food.source == FoodSource.cnf) continue;
       if (words.every((w) => has(own, w))) {
         direct.add(food);
       } else if (filed.length < limit && words.every((w) => has(own, w) || has(taxa, w))) {
