@@ -3,7 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Nutrimeter uses the camera to scan food barcodes.</string>
+	<string>Nutrimeter uses the camera to scan food barcodes and to photograph labels of products you add.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Nutrimeter can use a photo of a product label you already took when you add a product.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

@@ -19,7 +19,6 @@ class PickResult {
 }
 
 /// One food: choose an amount, see its nutrition against your targets, then confirm.
-/// Open Food Facts search hits are completed here with the full product (micros, servings).
 class FoodDetailPage extends StatefulWidget {
   const FoodDetailPage({super.key, required this.food, required this.actionLabel, this.meal, this.initialQuantity, this.initialUnit});
 
@@ -36,14 +35,11 @@ class FoodDetailPage extends StatefulWidget {
 }
 
 class _FoodDetailPageState extends State<FoodDetailPage> {
-  late Food _food = widget.food;
+  late final Food _food = widget.food;
   late double _quantity;
   late String _unit;
   late Meal? _meal = widget.meal;
-  bool _loading = false;
-  bool _touched = false;
   bool _showAll = false;
-  String? _error;
 
   @override
   void initState() {
@@ -51,11 +47,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     if (widget.initialQuantity != null && widget.initialUnit != null) {
       _quantity = widget.initialQuantity!;
       _unit = widget.initialUnit!;
-      _touched = true;
     } else {
       _applyDefault(_food);
     }
-    if (_food.source == FoodSource.off && !_food.complete && _food.barcode != null) _complete(_food.barcode!);
   }
 
   void _applyDefault(Food food) {
@@ -64,29 +58,12 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     _unit = d.unit.label;
   }
 
-  Future<void> _complete(String barcode) async {
-    setState(() => _loading = true);
-    final state = AppScope.read(context);
-    try {
-      final full = await state.off.product(barcode);
-      if (!mounted || full == null) return;
-      state.cacheFood(full);
-      setState(() {
-        _food = full;
-        if (!_touched) _applyDefault(full);
-      });
-    } catch (e) {
-      if (mounted) setState(() => _error = 'Showing search data only: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
     final grams = gramsFor(_food, _quantity, _unit);
     final scaled = withDerived(scaleTo(_food.nutrients, grams));
+    final category = _food.source == FoodSource.catalogue ? state.catalogue.categoryLabel(_food.id) : null;
     return Scaffold(
       appBar: AppBar(title: Text(_food.source.label, style: context.text.titleMedium)),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 120), children: [
@@ -96,19 +73,20 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(_food.name, style: context.text.headlineMedium),
+              if (category != null) Text(category, style: TextStyle(color: context.muted, fontSize: 12)),
               if (_food.brand != null) Text(_food.brand!, style: TextStyle(color: context.muted)),
               if (_food.barcode != null) Text(_food.barcode!, style: TextStyle(color: context.muted, fontSize: 12)),
             ]),
           ),
         ]),
-        if (_loading) const Padding(padding: EdgeInsets.only(top: 12), child: LinearProgressIndicator()),
-        if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: TextStyle(color: context.muted))),
-        if (!_food.hasNutrition && !_loading)
+        if (!_food.hasNutrition)
           Container(
             margin: const EdgeInsets.only(top: 12),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: context.du.warningSubtle, borderRadius: BorderRadius.circular(10), border: Border.all(color: context.du.warningLine, width: 0.6)),
-            child: const Text('Open Food Facts has no nutrition data for this product yet. Add it as a custom food instead.'),
+            child: Text(_food.source.isProvisional
+                ? 'This product is waiting for review. Log it by weight now; its nutrition fills in once the label is reviewed.'
+                : 'This food has no nutrition data.'),
           ),
         const SizedBox(height: 18),
         ServingField(
@@ -117,7 +95,6 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
           unit: _unit,
           autofocus: widget.initialQuantity != null,
           onChanged: (q, u) => setState(() {
-            _touched = true;
             _quantity = q;
             _unit = u;
           }),

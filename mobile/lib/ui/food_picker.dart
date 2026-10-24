@@ -4,9 +4,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../data/model.dart';
 import '../data/nutrients.dart';
 import '../data/store.dart';
+import '../logic/barcode.dart';
 import '../logic/foods.dart';
-import '../services/off.dart';
-import 'custom_foods.dart';
+import '../services/backend.dart';
+import 'capture.dart';
 import 'food_detail.dart';
 import 'scanner.dart';
 import 'theme.dart';
@@ -25,8 +26,10 @@ Future<PickResult?> pickFood(
       builder: (_) => FoodPickerPage(title: title, actionLabel: actionLabel, meal: meal, exclude: exclude, scanFirst: scan),
     ));
 
-/// Generic foods (CNF), your own foods and recipes are searched on the device as you type.
-/// Open Food Facts is only asked when you submit, or scan a barcode.
+/// Everything is searched on the device as you type: your foods and recipes, the synced catalogue, products waiting
+/// for review, and generic foods (CNF). A barcode is looked up in the catalogue, then your saved foods; a miss (or a
+/// product still waiting for review) is checked against a fresh catalogue before anything else. Anything not found
+/// can be added from photos and logged at once.
 class FoodPickerPage extends StatefulWidget {
   const FoodPickerPage({super.key, required this.title, required this.actionLabel, this.meal, this.exclude = const {}, this.scanFirst = false});
 
@@ -43,13 +46,10 @@ class FoodPickerPage extends StatefulWidget {
 class _FoodPickerPageState extends State<FoodPickerPage> {
   final _query = TextEditingController();
   String _q = '';
+  String? _barcodeError;
 
-  String? _offQuery;
-  List<Food> _offFoods = [];
-  int _offPage = 1;
-  bool _offMore = false;
-  bool _offLoading = false;
-  String? _offError;
+  /// A barcode lookup is checking the catalogue.
+  bool _looking = false;
 
   @override
   void initState() {
@@ -69,81 +69,45 @@ class _FoodPickerPageState extends State<FoodPickerPage> {
     return _q.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).every(hay.contains);
   }
 
-  Future<void> _searchOff({bool more = false}) async {
-    final q = _q.trim();
-    if (q.isEmpty) return;
-    if (OpenFoodFacts.isBarcode(q)) return _lookupBarcode(q);
-    final page = more ? _offPage + 1 : 1;
-    setState(() {
-      _offLoading = true;
-      _offError = null;
-      if (!more) {
-        _offQuery = q;
-        _offFoods = [];
-      }
-    });
-    try {
-      final res = await AppScope.read(context).off.search(q, page: page);
-      if (!mounted) return;
-      setState(() {
-        _offFoods = more ? [..._offFoods, ...res.foods] : res.foods;
-        _offPage = page;
-        _offMore = res.hasMore;
-      });
-    } catch (e) {
-      if (mounted) setState(() => _offError = '$e');
-    } finally {
-      if (mounted) setState(() => _offLoading = false);
-    }
-  }
-
   Future<void> _scan() async {
     final code = await scanBarcode(context);
     if (code == null || !mounted) return;
-    _query.text = code;
-    setState(() => _q = code);
-    await _lookupBarcode(code);
+    _query.text = code.raw;
+    setState(() => _q = code.raw);
+    await _lookup(code);
   }
 
-  Future<void> _lookupBarcode(String code) async {
+  /// A barcode typed into search.
+  Future<void> _lookupTyped(String q) async {
+    final code = normalizeBarcode(q, Symbology.unknown);
+    if (code == null) {
+      setState(() => _barcodeError = '$q is not a valid barcode (its check digit does not match).');
+      return;
+    }
+    await _lookup(code);
+  }
+
+  Future<void> _lookup(Gtin code) async {
+    if (_looking) return;
     final state = AppScope.read(context);
     setState(() {
-      _offLoading = true;
-      _offError = null;
-      _offQuery = code;
-      _offFoods = [];
+      _barcodeError = null;
+      _looking = true;
     });
-    Food? food;
+    final Food? food;
     try {
-      food = await state.off.product(code);
-    } catch (e) {
-      if (mounted) setState(() => _offError = '$e');
-      return;
+      food = await state.lookupBarcode(code.gtin14, refresh: Backend.signedIn ? () => Backend.sync(state, force: true) : null);
     } finally {
-      if (mounted) setState(() => _offLoading = false);
+      if (mounted) setState(() => _looking = false);
     }
     if (!mounted) return;
-    if (food == null) {
-      final create = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Not in Open Food Facts'),
-          content: Text('No product has the barcode $code yet. You can add it as a custom food from its nutrition label.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Create custom food')),
-          ],
-        ),
-      );
-      if (create == true && mounted) {
-        final created = await editCustomFood(context, barcode: code);
-        if (created != null && mounted) await _open(created);
-      }
-      return;
-    }
-    state.cacheFood(food);
-    setState(() => _offFoods = [food!]);
-    await _open(food);
+    if (food != null) return _open(food);
+    await _addProduct(barcode: code);
+  }
+
+  Future<void> _addProduct({Gtin? barcode, String? name}) async {
+    final food = await captureProduct(context, barcode: barcode, nameHint: name);
+    if (food != null && mounted) await _open(food);
   }
 
   Future<void> _open(Food food) async {
@@ -174,12 +138,20 @@ class _FoodPickerPageState extends State<FoodPickerPage> {
                       tooltip: 'Clear',
                       onPressed: () {
                         _query.clear();
-                        setState(() => _q = '');
+                        setState(() {
+                          _q = '';
+                          _barcodeError = null;
+                        });
                       },
                     ),
             ),
-            onChanged: (s) => setState(() => _q = s),
-            onSubmitted: (_) => _searchOff(),
+            onChanged: (s) => setState(() {
+              _q = s;
+              _barcodeError = null;
+            }),
+            onSubmitted: (s) {
+              if (looksLikeBarcode(s)) _lookupTyped(s.trim());
+            },
           ),
           actions: [IconButton(icon: const Icon(LucideIcons.scanBarcode), tooltip: 'Scan barcode', onPressed: _scan)],
           bottom: const TabBar(isScrollable: true, tabAlignment: TabAlignment.start, tabs: [
@@ -189,12 +161,17 @@ class _FoodPickerPageState extends State<FoodPickerPage> {
             Tab(text: 'Recipes'),
           ]),
         ),
-        body: TabBarView(children: [
-          _allTab(state),
-          _list(state.recentFoods.where(_matches).toList(), empty: 'Foods you log show up here.'),
-          _list(state.activeCustomFoods.where(_matches).toList(), empty: 'No custom foods yet. Create them from the Foods tab.'),
-          _list([for (final r in state.activeRecipes) recipeAsFood(state, r)].where(_matches).toList(),
-              empty: 'No recipes yet. Build one from the Recipes tab.'),
+        body: Column(children: [
+          if (_looking) const LinearProgressIndicator(semanticsLabel: 'Looking up the barcode'),
+          Expanded(
+            child: TabBarView(children: [
+              _allTab(state),
+              _list(state.recentFoods.where(_matches).toList(), empty: 'Foods you log show up here.'),
+              _list(state.activeCustomFoods.where(_matches).toList(), empty: 'No custom foods yet. Create them from the Foods tab.'),
+              _list([for (final r in state.activeRecipes) recipeAsFood(state, r)].where(_matches).toList(),
+                  empty: 'No recipes yet. Build one from the Recipes tab.'),
+            ]),
+          ),
         ]),
       ),
     );
@@ -210,47 +187,63 @@ class _FoodPickerPageState extends State<FoodPickerPage> {
         Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'Type to search generic foods (Canadian Nutrient File) and your own foods. '
-            'Press search on the keyboard to look in Open Food Facts for packaged products, or scan a barcode.',
+            'Type to search products, generic foods and your own foods, or scan a barcode. '
+            'Something missing can be added from photos of its package and logged straight away.',
             textAlign: TextAlign.center,
             style: TextStyle(color: context.muted),
           ),
         ),
       ]);
     }
+    final barcode = looksLikeBarcode(q);
     final mine = [...state.activeCustomFoods, for (final r in state.activeRecipes) recipeAsFood(state, r)].where(_matches).toList();
+    final products = [
+      ...state.catalogue.search(q).where((f) => !widget.exclude.contains(f.id)),
+      ...state.provisionalFoods.where(_matches),
+    ];
     final generic = state.cnf.search(q).where((f) => !widget.exclude.contains(f.id)).toList();
-    final offShown = _offQuery == q;
+    final nothing = mine.isEmpty && products.isEmpty && generic.isEmpty && state.cnfReady;
     return ListView(padding: const EdgeInsets.only(bottom: 40), children: [
+      if (barcode) ...[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: OutlinedButton.icon(
+            icon: const Icon(LucideIcons.barcode),
+            label: Text('Look up barcode $q'),
+            onPressed: () => _lookupTyped(q),
+          ),
+        ),
+        if (_barcodeError != null)
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), child: Text(_barcodeError!, style: TextStyle(color: context.du.danger))),
+      ],
       if (mine.isNotEmpty) ...[
         const _Header('My foods & recipes'),
         for (final f in mine) _FoodTile(food: f, onTap: () => _open(f)),
       ],
-      _Header('Generic foods · Canadian Nutrient File', trailing: !state.cnfReady ? 'loading…' : generic.isEmpty ? 'no matches' : null),
-      for (final f in generic) _FoodTile(food: f, onTap: () => _open(f)),
-      const _Header('Packaged products · Open Food Facts'),
-      if (_offError != null)
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Text(_offError!, style: TextStyle(color: context.du.danger))),
-      if (offShown) ...[
-        for (final f in _offFoods.where((f) => !widget.exclude.contains(f.id))) _FoodTile(food: f, onTap: () => _open(f)),
-        if (!_offLoading && _offFoods.isEmpty && _offError == null)
-          Padding(padding: const EdgeInsets.all(16), child: Text('No products with nutrition data matched.', style: TextStyle(color: context.muted))),
-        if (_offMore && !_offLoading)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: OutlinedButton(onPressed: () => _searchOff(more: true), child: const Text('Load more')),
-          ),
+      if (products.isNotEmpty) ...[
+        const _Header('Products'),
+        for (final f in products) _FoodTile(food: f, onTap: () => _open(f)),
       ],
-      if (_offLoading) const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator())),
-      if (!offShown && !_offLoading)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: OutlinedButton.icon(
-            icon: Icon(OpenFoodFacts.isBarcode(q) ? LucideIcons.barcode : LucideIcons.search),
-            label: Text(OpenFoodFacts.isBarcode(q) ? 'Look up barcode $q' : 'Search Open Food Facts for “$q”'),
-            onPressed: _searchOff,
+      if (!barcode) ...[
+        _Header('Generic foods · Canadian Nutrient File', trailing: !state.cnfReady ? 'loading…' : generic.isEmpty ? 'no matches' : null),
+        for (final f in generic) _FoodTile(food: f, onTap: () => _open(f)),
+      ],
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(
+            nothing ? 'Nothing matches “$q”.' : 'Not what you are looking for?',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.muted),
           ),
-        ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: const Icon(LucideIcons.camera),
+            label: const Text('Add a product'),
+            onPressed: () => barcode ? _lookupTyped(q) : _addProduct(name: q),
+          ),
+        ]),
+      ),
     ]);
   }
 
@@ -289,7 +282,9 @@ class _FoodTile extends StatelessWidget {
         ? '${formatAmount(kcal * serving.grams / 100, 'kcal')} kcal / ${serving.label}'
         : kcal != null
             ? '${formatAmount(kcal, 'kcal')} kcal / 100 g'
-            : 'no nutrition data';
+            : food.source.isProvisional
+                ? 'nutrition after review'
+                : 'no nutrition data';
     return ListTile(
       leading: FoodThumb(food: food),
       title: Text(food.name, maxLines: 2, overflow: TextOverflow.ellipsis),

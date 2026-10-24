@@ -1,0 +1,233 @@
+# USDA What We Eat in America (WWEIA) Food Categories, 2021-2023 (Food Surveys Research Group, November 2024):
+# https://ars.usda.gov/ARSUserFiles/80400530/pdf/2123/Food_Category_List_2021-2023.pdf
+# "# GROUP", "## Subgroup", then one category per line. Nutrimeter's changes are marked [merged] and [dropped];
+# supabase/seed-sources/gen_taxonomy.py turns this file into the taxonomy migration.
+# GROUP Milk and Dairy
+## Milk
+Milk [merged: Milk, whole; Milk, reduced fat; Milk, lowfat; Milk, nonfat]
+## Flavored Milk
+Flavored milk [merged: Flavored milk, whole; Flavored milk, reduced fat; Flavored milk, lowfat; Flavored milk, nonfat]
+## Dairy Drinks
+Milk shakes and other dairy drinks
+## Cheese
+Cheese
+Cottage/ricotta cheese
+## Yogurt
+Yogurt, regular
+Yogurt, Greek
+## Plant-based Dairy
+Plant-based milk
+Plant-based yogurt
+# GROUP Protein Foods
+## Meats
+Beef, excludes ground
+Ground beef
+Pork
+Lamb, goat, game
+Liver and organ meats
+## Poultry
+Chicken, whole pieces
+Chicken patties, nuggets and tenders
+Turkey, duck, other poultry
+## Seafood
+Fish
+Shellfish
+## Eggs
+Eggs and omelets
+## Cured Meats/Poultry
+Cold cuts and cured meats
+Bacon
+Frankfurters
+Sausages
+## Plant-based Protein Foods
+Beans, peas, legumes
+Nuts and seeds
+Soy and meat-alternative products
+# GROUP Mixed Dishes
+## Mixed Dishes – Meat, Poultry, Seafood
+Meat mixed dishes
+Poultry mixed dishes
+Seafood mixed dishes
+## Mixed Dishes – Bean/Vegetable-based
+Bean, pea, legume dishes
+Vegetable dishes
+## Mixed Dishes – Grain-based
+Rice mixed dishes
+Pasta mixed dishes, excludes macaroni & cheese
+Macaroni and cheese
+Turnovers and other grain-based items
+## Mixed Dishes – Asian
+Fried rice and lo/chow mein
+Stir-fry and soy-based sauce mixtures
+Egg rolls, dumplings, sushi
+## Mixed Dishes – Mexican
+Burritos and tacos
+Nachos
+Other Mexican mixed dishes
+## Mixed Dishes – Pizza
+Pizza
+## Mixed Dishes – Sandwiches
+Burgers
+Frankfurter sandwiches
+Chicken fillet sandwiches
+Egg/breakfast sandwiches
+Cheese sandwiches
+Peanut butter and jelly sandwiches
+Seafood sandwiches
+Deli and cured meat sandwiches
+Meat and BBQ sandwiches
+Vegetable sandwiches/burgers
+## Mixed Dishes – Soups
+Soups, broth-based
+Soups, cream-based
+Ramen and Asian broth-based soups
+# GROUP Grains
+## Cooked Grains
+Rice
+Pasta, noodles, cooked grains
+## Breads, Rolls, Tortillas
+Yeast breads
+Rolls and buns
+Bagels and English muffins
+Tortillas
+## Quick Breads and Bread Products
+Biscuits, muffins, quick breads
+Pancakes, waffles, French toast
+## Ready-to-Eat Cereals
+Ready-to-eat cereal [merged: RTE cereal, higher sugar (>21.2g/100g); RTE cereal, lower sugar (≤21.2g/100g)]
+## Cooked Cereals
+Oatmeal
+Grits and other cooked cereals
+# GROUP Snacks and Sweets
+## Savory Snacks
+Potato chips
+Tortilla, corn, other chips
+Popcorn
+Pretzels/snack mix
+## Crackers
+Crackers, excludes saltines
+Saltine crackers
+## Snack/Meal Bars
+Cereal bars
+Nutrition bars
+## Sweet Bakery Products
+Cakes and pies
+Cookies and brownies
+Doughnuts, sweet rolls, pastries
+## Candy
+Candy containing chocolate
+Candy not containing chocolate
+## Other Desserts
+Ice cream and frozen dairy desserts
+Pudding
+Gelatins, ices, sorbets
+# GROUP Fruit
+## Fruits
+Apple
+Bananas
+Grapes
+Peaches and nectarines
+Strawberries
+Blueberries and other berries
+Citrus fruits
+Melons
+Dried fruits
+Other fruits and fruit salads
+Pears
+Pineapple
+Mango and papaya
+# GROUP Vegetables
+## Vegetables, excluding Potatoes
+Tomatoes
+Carrots
+Other red and orange vegetables
+Broccoli
+Spinach
+Lettuce and lettuce salads
+Other dark green vegetables
+String beans
+Cabbage
+Onions
+Corn
+Other starchy vegetables
+Other vegetables and combinations
+Fried vegetables
+Coleslaw, non-lettuce salads
+Vegetables on a sandwich
+## White Potatoes
+White potatoes, baked or boiled
+French fries and other fried white potatoes
+Mashed potatoes and potato mixtures
+# GROUP Beverages
+## 100% Juice
+Citrus juice
+Apple juice
+Other fruit juice
+Vegetable juice
+## Diet Beverages
+Diet soft drinks
+Diet sport and energy drinks
+Other diet drinks
+## Sweetened Beverages
+Soft drinks
+Fruit drinks
+Sport and energy drinks
+Nutritional beverages
+Smoothies and grain drinks
+## Coffee and Tea
+Coffee
+Tea
+# GROUP Alcoholic Beverages
+## Alcoholic Beverages
+Beer
+Wine
+Liquor and cocktails
+# GROUP Water
+## Plain Water
+Tap water
+Bottled water
+## Flavored or Enhanced Water
+Flavored or carbonated water
+Enhanced water
+# GROUP Fats and Oils
+## Fats and Oils
+Butter and animal fats
+Margarine
+Cream cheese, sour cream, whipped cream
+Cream and cream substitutes
+Mayonnaise
+Salad dressings and vegetable oils
+# GROUP Condiments and Sauces
+## Condiments and Sauces
+Tomato-based condiments
+Soy-based condiments
+Mustard and other condiments
+Olives, pickles, pickled vegetables
+Pasta sauces, tomato-based
+Dips, gravies, other sauces
+# GROUP Sugars
+## Sugars
+Sugars and honey
+Sugar substitutes
+Jams, syrups, toppings
+# GROUP Baby Foods and Formulas
+## Baby Foods
+Baby food: cereals
+Baby food: fruit
+Baby food: vegetables
+Baby food: mixtures
+Baby food: meat and dinners
+Baby food: yogurt
+Baby food: snacks and sweets
+## Baby Beverages
+Baby juice
+Baby water
+## Infant Formulas
+Formula, ready-to-feed
+Formula, prepared from powder
+## Human Milk
+Human milk
+# GROUP Other
+## Other
+Protein and nutritional powders
+Not included in a food category [dropped: an uncategorized record has no category (null)]

@@ -8,7 +8,6 @@ import 'package:nutrimeter/data/store.dart';
 import 'package:nutrimeter/logic/foods.dart';
 import 'package:nutrimeter/logic/targets.dart';
 import 'package:nutrimeter/services/cnf.dart';
-import 'package:nutrimeter/services/off.dart';
 
 Food food(String id, Nutrients n, {List<Serving> servings = const []}) =>
     Food(id: 'custom:$id', source: FoodSource.custom, name: id, nutrients: n, servings: servings);
@@ -108,41 +107,6 @@ void main() {
       expect(copy.targets.manualKcal, 2100);
       expect(copy.targets.overrides['iron']!.target, 12);
       expect(() => copy.importJson('{"app":"other"}'), throwsFormatException);
-    });
-  });
-
-  group('Open Food Facts normalization', () {
-    test('converts gram-normalized micros, kJ and salt', () {
-      final f = OpenFoodFacts.normalize({
-        'code': '0123',
-        'product_name': 'Test bar',
-        'brands': 'Acme, Other',
-        'serving_size': '40 g',
-        'serving_quantity': 40,
-        'product_quantity': '400',
-        'quantity': '400 g',
-        'nutriments': {'energy-kj_100g': 1674, 'proteins_100g': 10, 'iron_100g': 0.0036, 'vitamin-d_100g': 0.000005, 'salt_100g': 1.0},
-      }, complete: true)!;
-      expect(f.id, 'off:0123');
-      expect(f.brand, 'Acme');
-      expect(f.nutrients['energy'], closeTo(400, 0.1));
-      expect(f.nutrients['iron'], closeTo(3.6, 1e-9));
-      expect(f.nutrients['vitD'], closeTo(5, 1e-9));
-      expect(f.nutrients['sodium'], closeTo(400, 1e-9));
-      expect(f.servings.map((s) => s.label), ['serving (40 g)', 'package (400 g)']);
-    });
-
-    test('keeps descriptive serving sizes and recognises barcodes', () {
-      final f = OpenFoodFacts.normalize({
-        'code': '1',
-        'product_name': 'Milk',
-        'serving_size': '1 cup (250 ml)',
-        'serving_quantity': '250',
-        'nutriments': {'energy-kcal_100g': 50},
-      }, complete: true)!;
-      expect(f.servings.single.label, '1 cup (250 ml)');
-      expect(OpenFoodFacts.isBarcode('3017624010701'), isTrue);
-      expect(OpenFoodFacts.isBarcode('nutella'), isFalse);
     });
   });
 
