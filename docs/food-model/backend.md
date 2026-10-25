@@ -11,16 +11,18 @@ Credentials live in `~/.keys/nutrimeter/`, never in the repo.
 
 ## Requirements
 
-1. **Every published number traces back to photos.** A value on a record leads to the revision that set it,
-   the review that accepted it, the extraction that proposed it and the photos it was read from.
+1. **Every published number traces back to its evidence.** A value on a product record leads to the revision
+   that set it, the review that accepted it, the extraction that proposed it and the photos it was read from. A
+   `cnf:` record's revision names its source instead (CNF 2026, Health Canada) and its food code.
 2. **Evidence is never lost.** Photos, extractions and reviews are append-only. Corrections add a revision;
    nothing is overwritten or deleted.
 3. **Three writers with different rights.** The app (you) submits photos and logs food. The agent claims
-   submissions and writes extractions and artwork. Only a human review publishes.
-4. **The app works offline.** Published records sync to the phone; CNF stays bundled; provisional records
-   are usable before review.
-5. **Personal scale.** One user, a few hundred products. Roughly 3 photos per product at about 300 KB after
-   on-device compression is about 1 MB per product, so about 1,000 products fit in 1 GB.
+   submissions and writes extractions and artwork. Only a human review publishes products; CNF foods are
+   published from the source by the admin (`publish_official_records`), without a review.
+4. **The app works offline.** Published records sync to the phone; CNF stays bundled too (a synced `cnf:`
+   record takes its bundled copy's place); provisional records are usable before review.
+5. **Scale.** One user's own products, plus Open Food Facts products queued in bulk from their photos (about
+   21,000 for Canada, 2026-10-24: roughly 0.5 MB of photos each after downscaling to 2048 px).
 
 ## Why Supabase
 
