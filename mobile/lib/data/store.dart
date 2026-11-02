@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,7 +14,8 @@ import '../services/cnf.dart';
 import '../services/submissions.dart';
 import 'model.dart';
 
-/// All app state. Persisted as one JSON file in the app's private storage, written shortly after each change.
+/// All app state. Persisted as one JSON file in the app's private storage, written shortly after each change. The
+/// catalogue cache, some 17,000 records, has a file of its own beside it ([catalogueFile]), written only when it syncs.
 class AppState extends ChangeNotifier implements FoodLibrary {
   AppState._(this._file, this.cnf);
 
@@ -21,6 +23,10 @@ class AppState extends ChangeNotifier implements FoodLibrary {
 
   /// Where the data file lives; pending label photos are kept under it (`submissions/<id>/`).
   Directory? get dataDir => _file?.parent;
+
+  /// The catalogue cache, beside the data file.
+  File? get catalogueFile => switch (_file) { final f? => File('${f.parent.path}/catalogue.json'), null => null };
+  Future<void> _catalogueWrite = Future.value();
 
   /// The bundled generic-food database. Empty until [loadCnf] finishes; foods already logged
   /// resolve from [savedFoods] meanwhile, so the diary never waits for it.
@@ -62,6 +68,19 @@ class AppState extends ChangeNotifier implements FoodLibrary {
         await f.copy('${f.path}.corrupt-${DateTime.now().millisecondsSinceEpoch}');
         debugPrint('Could not read saved data: $e');
       }
+    }
+    final cached = state.catalogueFile!;
+    if (await cached.exists()) {
+      try {
+        // Decoded off the UI thread: it is megabytes.
+        state.catalogue = state._withProvisionalNames(await _readCatalogue(cached.path));
+      } catch (e) {
+        // Only a cache: the next sync downloads it again.
+        debugPrint('Could not read the catalogue cache: $e');
+      }
+    } else if (!state.catalogue.isEmpty) {
+      // A catalogue kept in the data file by an older version moves to its own file.
+      state._saveCatalogue();
     }
     return state;
   }
@@ -271,7 +290,23 @@ class AppState extends ChangeNotifier implements FoodLibrary {
   void setCatalogue(Catalogue c) {
     catalogue = _withProvisionalNames(c);
     _changed();
+    _saveCatalogue();
   }
+
+  /// Writes the catalogue cache, one write at a time, encoded off the UI thread.
+  Future<void> _saveCatalogue() {
+    final f = catalogueFile;
+    if (f == null) return Future.value();
+    final json = catalogue.toJson();
+    final path = f.path;
+    return _catalogueWrite = _catalogueWrite
+        .then((_) => _writeJson(path, json))
+        .catchError((Object e) => debugPrint('Could not save the catalogue cache: $e'));
+  }
+
+  /// Waits for the catalogue cache to be written.
+  @visibleForTesting
+  Future<void> get catalogueSaved => _catalogueWrite;
 
   /// A product just captured: its provisional food is saved at once (so it can be logged) and its submission waits
   /// for upload.
@@ -350,7 +385,6 @@ class AppState extends ChangeNotifier implements FoodLibrary {
         'entries': [for (final e in entries) e.toJson()],
         'targets': targets.toJson(),
         'recent': recent,
-        if (!backup) 'catalogue': catalogue.toJson(),
         if (!backup) 'pendingSubmissions': [for (final s in pendingSubmissions) s.toJson()],
       };
 
@@ -362,12 +396,23 @@ class AppState extends ChangeNotifier implements FoodLibrary {
     entries = list('entries').map(DiaryEntry.fromJson).toList();
     targets = j['targets'] == null ? const Targets() : Targets.fromJson((j['targets'] as Map).cast<String, dynamic>());
     recent = ((j['recent'] as List?) ?? const []).cast<String>();
+    // Older versions kept the catalogue cache here.
     if (j['catalogue'] is Map) catalogue = Catalogue.fromJson((j['catalogue'] as Map).cast<String, dynamic>());
     catalogue = _withProvisionalNames(catalogue);
     if (j['pendingSubmissions'] is List) pendingSubmissions = list('pendingSubmissions').map(PendingSubmission.fromJson).toList();
     _resolved = null;
   }
 }
+
+// Top-level, so the closures sent to the isolates hold only the path and the JSON.
+Future<Catalogue> _readCatalogue(String path) =>
+    Isolate.run(() => Catalogue.fromJson(jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>));
+
+Future<void> _writeJson(String path, Object json) => Isolate.run(() {
+      final tmp = File('$path.tmp');
+      tmp.writeAsStringSync(jsonEncode(json), flush: true);
+      tmp.renameSync(path);
+    });
 
 /// Makes [AppState] available to the widget tree and rebuilds dependents when it changes.
 class AppScope extends InheritedNotifier<AppState> {

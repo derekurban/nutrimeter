@@ -110,7 +110,10 @@ class Backend {
   static Future<void> _fetch(SupabaseClient c, AppState state) async {
     syncing.value = true;
     try {
-      state.setCatalogue(await fetchCatalogue(c, config));
+      final watch = Stopwatch()..start();
+      final full = state.catalogue.cursor == null;
+      state.setCatalogue(await fetchCatalogue(c, config, current: state.catalogue));
+      debugPrint('Catalogue: ${full ? 'full' : 'incremental'} sync, ${state.catalogue.records.length} records, ${watch.elapsedMilliseconds} ms');
       _synced = DateTime.now();
       syncError.value = null;
     } catch (e) {

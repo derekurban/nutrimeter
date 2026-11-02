@@ -269,8 +269,115 @@ void main() {
       expect(state.catalogue.food(eggsId)!.imageUrl, '$art/categories/eggs-and-omelets.webp');
       expect(state.catalogue.categoryLabel(eggsId), 'Protein Foods › Eggs › Eggs and omelets');
       await state.save();
-      final saved = (jsonDecode(await file.readAsString()) as Map<String, dynamic>)['catalogue'];
-      expect(jsonEncode(saved), isNot(contains('concept')));
+      await state.catalogueSaved;
+      expect((jsonDecode(await file.readAsString()) as Map<String, dynamic>).containsKey('catalogue'), isFalse,
+          reason: 'the cache has its own file now');
+      final saved = await state.catalogueFile!.readAsString();
+      expect(saved, isNot(contains('concept')));
+      expect(Catalogue.fromJson(jsonDecode(saved) as Map<String, dynamic>).cursor, isNull, reason: 'a full sync comes next');
+    });
+
+    test('a cache kept in the data file by an older version moves to its own file', () async {
+      final dir = await Directory.systemTemp.createTemp('nutrimeter');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/nutrimeter.json');
+      await file.writeAsString(jsonEncode({'app': 'nutrimeter', 'schema': 1, 'catalogue': sample().toJson()}));
+
+      final state = await AppState.load(file: file);
+      expect(state.catalogue.food(eggsId)!.name, 'Organic Eggs');
+      await state.catalogueSaved;
+      state.log(date: '2026-10-23', meal: Meal.snacks, food: state.catalogue.food(eggsId)!, quantity: 1, unit: 'g');
+      await state.save();
+      expect(await file.readAsString(), isNot(contains('Cheerios')), reason: 'diary saves no longer carry the catalogue');
+
+      final again = await AppState.load(file: file);
+      expect(again.catalogue.food(eggsId)!.name, 'Organic Eggs');
+      expect(again.catalogue.syncedAt, DateTime.utc(2026, 10, 23, 12));
+      expect(again.resolve(eggsId)!.brand, 'Kirkland Signature');
+    });
+
+    test('an unreadable cache is dropped, and the data file is kept', () async {
+      final dir = await Directory.systemTemp.createTemp('nutrimeter');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/nutrimeter.json');
+      await file.writeAsString(jsonEncode({'app': 'nutrimeter', 'schema': 1, 'recent': ['cnf:1']}));
+      await File('${dir.path}/catalogue.json').writeAsString('{"records": [');
+      final state = await AppState.load(file: file);
+      expect(state.catalogue.isEmpty, isTrue);
+      expect(state.recent, ['cnf:1']);
+    });
+  });
+
+  group('incremental sync', () {
+    Map<String, dynamic> row(String id, Map<String, dynamic>? data, String at, {String? category}) =>
+        {'id': id, 'role': 'product', 'category_id': category, 'updated_at': at, 'data': data};
+
+    test('changes add, revise, refile and remove records, and move the cursor', () {
+      final base = sample();
+      final full = base.withChanges(
+        [row(eggsId, eggs(), '2026-10-24T10:00:00.123456+00:00', category: 'eggs-and-omelets'), row(cokeId, product('Coke', energy: 42), '2026-10-24T09:00:00+00:00')],
+        full: true,
+        taxonomy: base.taxonomy,
+        aliases: base.aliases,
+        syncedAt: DateTime.utc(2026, 10, 24, 11),
+      );
+      expect(full.records.map((r) => r.id), [eggsId, cokeId], reason: 'a full sync replaces the records');
+      expect(full.cursor, DateTime.utc(2026, 10, 24, 10, 0, 0, 123, 456));
+      expect(full.food(pendingId)!.name, 'Organic Eggs', reason: 'aliases still apply');
+
+      const tea = 'gtin:00062020000019';
+      final next = full.withChanges(
+        [
+          row(cokeId, null, '2026-10-25T08:00:00+00:00'),
+          row(eggsId, product('Free Run Eggs', energy: 140), '2026-10-25T08:00:01+00:00', category: 'soft-drinks'),
+          row(tea, product('Orange Pekoe'), '2026-10-25T07:00:00+00:00'),
+        ],
+        taxonomy: base.taxonomy,
+        aliases: const {},
+      );
+      expect(next.food(cokeId), isNull, reason: 'unpublished');
+      expect(next.food(eggsId)!.name, 'Free Run Eggs');
+      expect(next.categoryLabel(eggsId), 'Beverages › Sweetened Beverages › Soft drinks');
+      expect(next.food(tea)!.nutrients, {'energy': 100.0});
+      expect(next.food(pendingId), isNull, reason: 'the aliases are replaced');
+      expect(next.cursor, DateTime.utc(2026, 10, 25, 8, 0, 1));
+      expect(next.syncedAt, DateTime.utc(2026, 10, 24, 11), reason: 'kept unless given');
+
+      final nothing = next.withChanges(const [], taxonomy: base.taxonomy, aliases: const {});
+      expect(nothing.cursor, next.cursor);
+      expect(nothing.records, hasLength(2));
+
+      final cached = Catalogue.fromJson(jsonDecode(jsonEncode(next.toJson())) as Map<String, dynamic>);
+      expect(cached.cursor, next.cursor);
+    });
+
+    test('records the app does not read are slimmed by the server, and the app reads them the same', () {
+      // What app_record_data (migration 20261101120000) leaves of eggs(): names, brand, barcodes' gtin, and each
+      // profile's id, per_100g and portions' label and grams, nulls dropped.
+      final slim = {
+        'name': 'Organic Eggs',
+        'brand': 'Kirkland Signature',
+        'default_profile': 'as-sold',
+        'barcodes': [
+          {'gtin': '00096619845774'},
+        ],
+        'profiles': [
+          {'id': 'prepared', 'per_100g': {'energy': 999}},
+          {
+            'id': 'as-sold',
+            'per_100g': {'energy': 132.1, 'protein': 11.32, 'fat': 9.43, 'carbs': 1.89, 'sodium': 122.6, 'netCarbs': 5, 'madeUp': 1},
+            'portions': [
+              {'label': '1 large egg', 'grams': 53},
+              {'label': 'g', 'grams': 1},
+              {'label': '1 large egg', 'grams': 60},
+              {'label': 'no grams'},
+            ],
+          },
+        ],
+      };
+      final whole = catalogueFood(CatalogueRecord(id: eggsId, role: 'product', data: eggs()));
+      final slimmed = catalogueFood(CatalogueRecord(id: eggsId, role: 'product', data: slim));
+      expect(jsonEncode(slimmed.toJson()), jsonEncode(whole.toJson()));
     });
   });
 
