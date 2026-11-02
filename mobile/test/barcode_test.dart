@@ -71,4 +71,38 @@ void main() {
       expect(gtinOfId('cnf:12'), isNull);
     });
   });
+
+  group('ScanConfirmer', () {
+    final t0 = DateTime(2026, 11, 2, 12);
+    Duration ms(int n) => Duration(milliseconds: n);
+    final ean = normalizeBarcode('0096619845774', Symbology.ean13)!;
+
+    test('a code counts on its second read, not its first', () {
+      final c = ScanConfirmer();
+      expect(c.add(ean, t0), isNull);
+      expect(c.add(ean, t0.add(ms(80))), ean);
+    });
+
+    test('a lone misread between good reads does not end the scan', () {
+      final c = ScanConfirmer();
+      final fragment = normalizeBarcode('06782900', Symbology.upce)!;
+      expect(c.add(fragment, t0), isNull);
+      expect(c.add(ean, t0.add(ms(80))), isNull);
+      expect(c.add(ean, t0.add(ms(160))), ean);
+    });
+
+    test('the same product read as EAN-13 and as UPC-A agrees', () {
+      final c = ScanConfirmer();
+      final upc = normalizeBarcode('096619845774', Symbology.upca)!;
+      expect(c.add(ean, t0), isNull);
+      expect(c.add(upc, t0.add(ms(80))), upc);
+    });
+
+    test('reads further apart than the window do not add up', () {
+      final c = ScanConfirmer(window: ms(1000));
+      expect(c.add(ean, t0), isNull);
+      expect(c.add(ean, t0.add(ms(1500))), isNull);
+      expect(c.add(ean, t0.add(ms(1700))), ean);
+    });
+  });
 }
