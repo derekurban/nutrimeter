@@ -112,5 +112,25 @@ Gtin? normalizeBarcode(String raw, Symbology symbology) {
   return Gtin(raw: code, symbology: symbology, gtin14: full.padLeft(14, '0'));
 }
 
+/// Settles a live camera scan: a code counts once it has been read [reads] times within [window]. A lone misread,
+/// such as an EAN-8 or UPC-E picked out of part of a longer code, never ends the scan; a real barcode is read again on
+/// the next frame or two, so the wait is a fraction of a second. Reads are compared by GTIN-14, so the same code
+/// reported once as EAN-13 and once as UPC-A still agrees.
+class ScanConfirmer {
+  ScanConfirmer({this.reads = 2, this.window = const Duration(milliseconds: 1500)});
+
+  final int reads;
+  final Duration window;
+  final _recent = <(String, DateTime)>[];
+
+  /// Records a read at [at]; returns [code] once it is confirmed, null while it is not.
+  Gtin? add(Gtin code, DateTime at) {
+    _recent
+      ..removeWhere((r) => at.difference(r.$2) > window)
+      ..add((code.gtin14, at));
+    return _recent.where((r) => r.$1 == code.gtin14).length >= reads ? code : null;
+  }
+}
+
 /// The GTIN-14 inside a `gtin:` id, or null for any other id.
 String? gtinOfId(String id) => id.startsWith('gtin:') ? id.substring(5) : null;
