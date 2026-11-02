@@ -3,23 +3,26 @@
 Status: built, 2026-10-23. Where submissions, photos, reviews and the published catalogue live, and why
 Supabase over Convex.
 
-**Decided:** Supabase, with no server of our own. The app talks to Supabase directly; review happens on a
-local website (`admin/`) that drives the local Codex app server. The main project is `vkhnbxizgnyfmnfphrmk`
+**Decided:** Supabase, with no server of our own. The app talks to Supabase directly. Review happens in
+Nutrimeter Admin (the private repo `derekurban/nutrimeter-admin`). It is a server on the desktop that drives the
+local Codex app server, with a web console there and a phone app that reaches it over Tailscale. The main project is `vkhnbxizgnyfmnfphrmk`
 (Canada Central, Pro plan) and development happens on its persistent `dev` branch (`enbylsacypvbzzdoapyg`).
 Credentials live in `~/.keys/nutrimeter/`, never in the repo.
 
 ## Requirements
 
-1. **Every published number traces back to photos.** A value on a record leads to the revision that set it,
-   the review that accepted it, the extraction that proposed it and the photos it was read from.
+1. **Every published number traces back to its evidence.** A value on a product record leads to the revision
+   that set it, the review that accepted it, the extraction that proposed it and the photos it was read from. A
+   `cnf:` record's revision names its source instead (CNF 2026, Health Canada) and its food code.
 2. **Evidence is never lost.** Photos, extractions and reviews are append-only. Corrections add a revision;
    nothing is overwritten or deleted.
 3. **Three writers with different rights.** The app (you) submits photos and logs food. The agent claims
-   submissions and writes extractions and artwork. Only a human review publishes.
-4. **The app works offline.** Published records sync to the phone; CNF stays bundled; provisional records
-   are usable before review.
-5. **Personal scale.** One user, a few hundred products. Roughly 3 photos per product at about 300 KB after
-   on-device compression is about 1 MB per product, so about 1,000 products fit in 1 GB.
+   submissions and writes extractions and artwork. Only a human review publishes products; CNF foods are
+   published from the source by the admin (`publish_official_records`), without a review.
+4. **The app works offline.** Published records sync to the phone; CNF stays bundled too (a synced `cnf:`
+   record takes its bundled copy's place); provisional records are usable before review.
+5. **Scale.** One user's own products, plus Open Food Facts products queued in bulk from their photos (about
+   21,000 for Canada, 2026-10-24: roughly 0.5 MB of photos each after downscaling to 2048 px).
 
 ## Why Supabase
 
@@ -80,19 +83,23 @@ Rules the database enforces:
 - **App (Flutter):** signs in as you (email and password; sign-ups are off, the account is created on the review
   site). Submits the barcode, photos and hints straight to Supabase, logs the provisional food at once, and
   syncs the published catalogue for offline use. CNF stays bundled.
-- **Review site (`admin/`, localhost only):** the queue, the photos beside each AI reading, and the decision.
+- **Nutrimeter Admin (desktop server; console on localhost, phone app over Tailscale):** the queue, the photos
+  beside each AI reading, and the decision.
   **Start AI review** runs a thread on the local Codex app server: the photos and the taxonomy go into a scratch
   folder, and the answer must match the extraction schema, whose category field only accepts existing
   categories or null. The site validates and derives everything, then records the attempt. Accept publishes;
-  reject needs a comment, which the next attempt reads. See `admin/README.md`.
+  reject needs a comment, which the next attempt reads. See that repo's README.
 - **No GitHub issues.** The queue is the `submissions` table.
 
 ## Environments
 
 | | Supabase | Used by |
 |---|---|---|
-| dev | `dev` branch (`enbylsacypvbzzdoapyg`) | debug and staging builds; `npm start` in `admin/`; database tests |
-| prod | main project (`vkhnbxizgnyfmnfphrmk`) | prod builds; `NUTRIMETER_ENV=prod npm start` |
+| dev | `dev` branch (`enbylsacypvbzzdoapyg`) | debug builds; database tests |
+| staging | `staging` branch (`xtcutyizsdmswptesyaq`) | staging releases |
+| prod | main project (`vkhnbxizgnyfmnfphrmk`) | prod releases |
+
+Nutrimeter Admin switches between all three.
 
 Migrations in `supabase/migrations/` go to the dev branch first, then to the main project.
 

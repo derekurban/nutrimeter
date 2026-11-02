@@ -28,6 +28,14 @@ by `tool/gen_cnf.py`. It covers 5,993 generic foods, with values per 100 g of ed
 
   > Contains information licensed under the Open Government Licence – Canada. Source: Canadian Nutrient File, Health Canada, 2026.
 
+## In the catalogue
+
+The same foods are also published to Supabase as `cnf:<code>` generic records, without a review, by the admin
+(nutrimeter-admin: `npm run cnf -- publish`, through `publish_official_records`). Each is filed under a
+taxonomy category, and its revision data keeps the source, food code, CNF food group and the attribution above.
+The app shows the synced record in place of the bundled copy. Regenerate the asset here first, then publish
+again: changed foods get a new revision.
+
 ## Regenerating
 
 From the repo root:

@@ -201,7 +201,11 @@ class _FoodPickerPageState extends State<FoodPickerPage> {
       ...state.catalogue.search(q).where((f) => !widget.exclude.contains(f.id)),
       ...state.provisionalFoods.where(_matches),
     ];
-    final generic = state.cnf.search(q).where((f) => !widget.exclude.contains(f.id)).toList();
+    // A CNF food published to the catalogue shows its published version (with its category's picture).
+    final generic = [
+      for (final f in state.cnf.search(q))
+        if (!widget.exclude.contains(f.id)) state.catalogue.food(f.id) ?? f,
+    ];
     final nothing = mine.isEmpty && products.isEmpty && generic.isEmpty && state.cnfReady;
     return ListView(padding: const EdgeInsets.only(bottom: 40), children: [
       if (barcode) ...[
