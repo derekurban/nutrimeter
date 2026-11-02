@@ -35,6 +35,7 @@ class _CapturePageState extends State<CapturePage> {
   final _photos = <PhotoRole, XFile>{};
   final _others = <XFile>[];
   bool _noTable = false;
+  bool _noIngredients = false;
   bool _saving = false;
   String? _error;
 
@@ -45,7 +46,20 @@ class _CapturePageState extends State<CapturePage> {
     super.dispose();
   }
 
-  bool get _ready => _photos[PhotoRole.front] != null && (_photos[PhotoRole.nutrition] != null || _noTable);
+  /// What the reviewer is told about missing photos. The admin reads these exact sentences (NO_INGREDIENTS_NOTE in
+  /// nutrimeter-admin's shared/derive.mjs).
+  String? get _note {
+    final parts = [
+      if (_noTable) 'The package has no nutrition table.',
+      if (_noIngredients) 'The package has no ingredient list.',
+    ];
+    return parts.isEmpty ? null : parts.join(' ');
+  }
+
+  bool get _ready =>
+      _photos[PhotoRole.front] != null &&
+      (_photos[PhotoRole.nutrition] != null || _noTable) &&
+      (_photos[PhotoRole.ingredients] != null || _noIngredients);
 
   Future<XFile?> _pick(ImageSource source) async {
     try {
@@ -108,7 +122,7 @@ class _CapturePageState extends State<CapturePage> {
           gtin: code?.gtin14,
           nameHint: name.isEmpty ? null : name,
           brandHint: brand.isEmpty ? null : brand,
-          note: _noTable ? 'The package has no nutrition table.' : null,
+          note: _note,
           photos: photos,
           createdAt: DateTime.now(),
         ),
@@ -178,10 +192,22 @@ class _CapturePageState extends State<CapturePage> {
         ),
         _PhotoSlot(
           title: 'Ingredients',
-          hint: 'Optional',
+          hint: _noIngredients ? 'Not needed: this product has no ingredient list' : 'The whole list, flat and in focus',
           photo: _photos[PhotoRole.ingredients],
+          enabled: !_noIngredients,
           onTake: (s) => _take(PhotoRole.ingredients, s),
           onRemove: () => setState(() => _photos.remove(PhotoRole.ingredients)),
+        ),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: const Text('This product has no ingredient list'),
+          subtitle: const Text('Single-ingredient foods, like water, eggs or honey'),
+          value: _noIngredients,
+          onChanged: (v) => setState(() {
+            _noIngredients = v ?? false;
+            if (_noIngredients) _photos.remove(PhotoRole.ingredients);
+          }),
         ),
         for (var i = 0; i < _others.length; i++)
           _PhotoSlot(
@@ -230,7 +256,7 @@ class _CapturePageState extends State<CapturePage> {
           child: FilledButton(
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
             onPressed: _ready && !_saving ? _save : null,
-            child: Text(_saving ? 'Saving…' : _ready ? 'Save and log' : 'Add the front and nutrition photos'),
+            child: Text(_saving ? 'Saving…' : _ready ? 'Save and log' : 'Add the front, nutrition and ingredients photos'),
           ),
         ),
       ),

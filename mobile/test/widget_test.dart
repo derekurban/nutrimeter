@@ -54,10 +54,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Front'), findsOneWidget);
     expect(find.text('Nutrition Facts table'), findsOneWidget);
-    // The search becomes the name hint; nothing can be saved until the front and nutrition photos are in.
+    expect(find.text('Ingredients'), findsOneWidget);
+    expect(find.text('This product has no ingredient list'), findsOneWidget);
+    // The search becomes the name hint; nothing can be saved until the front, nutrition and ingredients photos are in.
     expect(find.widgetWithText(TextField, 'zzqx crackers'), findsOneWidget);
-    final save = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Add the front and nutrition photos'));
+    final save = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Add the front, nutrition and ingredients photos'));
     expect(save.onPressed, isNull);
+    await tester.dragUntilVisible(find.textContaining('You are not signed in'), find.byType(ListView).last, const Offset(0, -300));
     expect(find.textContaining('You are not signed in'), findsOneWidget);
   });
 }

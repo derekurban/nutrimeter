@@ -91,7 +91,7 @@ Each nutrition profile in a published revision (`record_revisions.data.profiles[
 ```
 
 - **Labels are stored as printed** (`label`: per-serving amounts, units and %DV), and `per_100g` is derived
-  from them by the admin (`admin/shared/derive.mjs`). A reviewer sees both side by side.
+  from them by Nutrimeter Admin (`shared/derive.mjs` there). A reviewer sees both side by side.
 - **Portions carry grams**, plus the mL or count wording they came from: "1 large egg" = 53 g, "1 can" = 369.2 g
   (355 mL), "1 slice" = 23 g (from "2 slices (46 g)").
 - **Unknown stays unknown.** A label value of 0 is a declared zero; a missing value is absent. A nutrient printed

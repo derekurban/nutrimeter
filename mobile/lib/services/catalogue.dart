@@ -72,6 +72,29 @@ class Taxonomy {
         'categories': [for (final t in categories.values) t.toJson()],
       };
 
+  /// From the backend's `food_groups`, `food_subgroups` and `food_categories` rows. [imageUrl] turns an `image_path`
+  /// into the URL of its picture in the `taxonomy-art` bucket.
+  factory Taxonomy.fromRows({
+    required List<Map<String, dynamic>> groups,
+    required List<Map<String, dynamic>> subgroups,
+    required List<Map<String, dynamic>> categories,
+    required String Function(String imagePath) imageUrl,
+  }) {
+    Taxon taxon(Map<String, dynamic> row, [String? parentColumn]) => Taxon(
+          id: row['id'] as String,
+          name: row['name'] as String? ?? '',
+          parentId: parentColumn == null ? null : row[parentColumn] as String?,
+          position: (row['position'] as num?)?.toInt() ?? 0,
+          imageUrl: switch (_text(row['image_path'])) { final path? => imageUrl(path), null => null },
+          imageAlt: _text(row['image_alt']),
+        );
+    return Taxonomy(
+      groups: [for (final g in groups) taxon(g)],
+      subgroups: [for (final s in subgroups) taxon(s, 'group_id')],
+      categories: [for (final c in categories) taxon(c, 'subgroup_id')],
+    );
+  }
+
   factory Taxonomy.fromJson(Map<String, dynamic> j) => Taxonomy(
         groups: [for (final t in _maps(j['groups'])) Taxon.fromJson(t)],
         subgroups: [for (final t in _maps(j['subgroups'])) Taxon.fromJson(t)],
@@ -84,7 +107,7 @@ class Taxonomy {
 class CatalogueRecord {
   const CatalogueRecord({required this.id, required this.role, this.categoryId, required this.data});
 
-  /// `gtin:<14 digits>` or `food:<slug>`.
+  /// `gtin:<14 digits>`, `food:<slug>`, or `cnf:<code>` for a Canadian Nutrient File food published from the source.
   final String id;
 
   /// `product` or `generic`.
@@ -142,9 +165,11 @@ Food catalogueFood(CatalogueRecord r, [Taxonomy? taxonomy, String? fallbackName]
   final barcodes = _maps(d['barcodes']);
   return Food(
     id: r.id,
-    source: FoodSource.catalogue,
+    // A cnf: record is the bundled CNF food as published (filed under a category, so it has a picture).
+    source: r.id.startsWith('cnf:') ? FoodSource.cnf : FoodSource.catalogue,
     name: r.name ?? _text(fallbackName) ?? 'Unnamed product',
-    brand: _text(d['brand']),
+    // Like the bundled CNF, a published CNF food shows its French name where a product shows its brand.
+    brand: _text(d['brand']) ?? (r.id.startsWith('cnf:') ? _text(d['name_fr']) : null),
     imageUrl: taxonomy?.imageUrl(r.categoryId),
     barcode: gtinOfId(r.id) ?? (barcodes.isEmpty ? null : _text(barcodes.first['gtin'])),
     nutrients: values,
@@ -152,10 +177,16 @@ Food catalogueFood(CatalogueRecord r, [Taxonomy? taxonomy, String? fallbackName]
   );
 }
 
-/// The published catalogue, cached in the app's data file so it works offline.
+/// The published catalogue, cached in its own file beside the app's data so it works offline.
 class Catalogue {
-  Catalogue({this.records = const [], this.aliases = const {}, Taxonomy? taxonomy, this.syncedAt, this.fallbackNames = const {}})
-      : taxonomy = taxonomy ?? Taxonomy.empty,
+  Catalogue({
+    this.records = const [],
+    this.aliases = const {},
+    Taxonomy? taxonomy,
+    this.syncedAt,
+    this.cursor,
+    this.fallbackNames = const {},
+  })  : taxonomy = taxonomy ?? Taxonomy.empty,
         foods = {for (final r in records) r.id: catalogueFood(r, taxonomy, fallbackNames[r.id])};
 
   final List<CatalogueRecord> records;
@@ -164,6 +195,10 @@ class Catalogue {
   final Map<String, String> aliases;
   final Taxonomy taxonomy;
   final DateTime? syncedAt;
+
+  /// The latest server `updated_at` among the records synced: the next sync asks for what changed after it. Null
+  /// until a sync has brought every record (a cache from before incremental syncs has none), so a full sync comes next.
+  final DateTime? cursor;
 
   /// Record id → the name the user gave the product before review, for records published without a name. It comes
   /// from this device ([withFallbackNames]), so it is not part of the cache.
@@ -188,7 +223,44 @@ class Catalogue {
 
   /// The same catalogue, naming records published without a name from [names].
   Catalogue withFallbackNames(Map<String, String> names) =>
-      Catalogue(records: records, aliases: aliases, taxonomy: taxonomy, syncedAt: syncedAt, fallbackNames: names);
+      Catalogue(records: records, aliases: aliases, taxonomy: taxonomy, syncedAt: syncedAt, cursor: cursor, fallbackNames: names);
+
+  /// This catalogue with [changes] applied: rows from `catalogue_changes` (`id`, `role`, `category_id`, `updated_at`,
+  /// `data`), where a row without data is a record no longer published. [full] replaces the records instead. The
+  /// taxonomy and aliases are replaced, and the cursor moves to the latest `updated_at` seen.
+  Catalogue withChanges(
+    List<Map<String, dynamic>> changes, {
+    bool full = false,
+    required Taxonomy taxonomy,
+    required Map<String, String> aliases,
+    DateTime? syncedAt,
+  }) {
+    final byId = full ? <String, CatalogueRecord>{} : {for (final r in records) r.id: r};
+    var latest = full ? null : cursor;
+    for (final row in changes) {
+      final id = row['id'] as String;
+      final data = row['data'];
+      if (data is Map) {
+        byId[id] = CatalogueRecord(
+          id: id,
+          role: row['role'] as String? ?? 'product',
+          categoryId: _text(row['category_id']),
+          data: data.cast<String, dynamic>(),
+        );
+      } else {
+        byId.remove(id);
+      }
+      final at = row['updated_at'] is String ? DateTime.tryParse(row['updated_at'] as String) : null;
+      if (at != null && (latest == null || at.isAfter(latest))) latest = at;
+    }
+    return Catalogue(
+      records: byId.values.toList(),
+      aliases: aliases,
+      taxonomy: taxonomy,
+      syncedAt: syncedAt ?? this.syncedAt,
+      cursor: latest,
+    );
+  }
 
   /// Follows [aliases] to the id a food is published under now. Chains are followed; a cycle stops where it repeats.
   String canonical(String id) {
@@ -217,7 +289,8 @@ class Catalogue {
   }
 
   /// Records with every word of [query] as a word prefix of their name, brand, category, subgroup or group. Records
-  /// that match on name and brand alone come first.
+  /// that match on name and brand alone come first. Published CNF foods are left out: they are found through the
+  /// bundled CNF search, which shows their published version ([food]).
   List<Food> search(String query, {int limit = 40}) {
     final words = _words(query);
     if (words.isEmpty) return const [];
@@ -225,6 +298,7 @@ class Catalogue {
     final direct = <Food>[];
     final filed = <Food>[];
     for (final (food, own, taxa) in _index) {
+      if (food.source == FoodSource.cnf) continue;
       if (words.every((w) => has(own, w))) {
         direct.add(food);
       } else if (filed.length < limit && words.every((w) => has(own, w) || has(taxa, w))) {
@@ -239,6 +313,7 @@ class Catalogue {
 
   Map<String, Object?> toJson() => {
         'syncedAt': syncedAt?.toIso8601String(),
+        'cursor': cursor?.toIso8601String(),
         'taxonomy': taxonomy.toJson(),
         'records': [for (final r in records) r.toJson()],
         'aliases': aliases,
@@ -254,6 +329,7 @@ class Catalogue {
         },
         taxonomy: j['taxonomy'] is Map ? Taxonomy.fromJson((j['taxonomy'] as Map).cast<String, dynamic>()) : null,
         syncedAt: j['syncedAt'] is String ? DateTime.tryParse(j['syncedAt'] as String) : null,
+        cursor: j['cursor'] is String ? DateTime.tryParse(j['cursor'] as String) : null,
       );
 
   /// Builds the catalogue from the backend's rows: `food_groups`, `food_subgroups`, `food_categories`, `records`,
@@ -269,15 +345,6 @@ class Catalogue {
     required String Function(String imagePath) imageUrl,
     DateTime? syncedAt,
   }) {
-    Taxon taxon(Map<String, dynamic> row, [String? parentColumn]) => Taxon(
-          id: row['id'] as String,
-          name: row['name'] as String? ?? '',
-          parentId: parentColumn == null ? null : row[parentColumn] as String?,
-          position: (row['position'] as num?)?.toInt() ?? 0,
-          imageUrl: switch (_text(row['image_path'])) { final path? => imageUrl(path), null => null },
-          imageAlt: _text(row['image_alt']),
-        );
-
     final revisionById = {for (final r in revisions) r['id'] as String: r};
     final out = <CatalogueRecord>[];
     for (final r in records) {
@@ -293,19 +360,22 @@ class Catalogue {
     return Catalogue(
       records: out,
       aliases: {for (final a in aliases) a['from_id'] as String: a['to_id'] as String},
-      taxonomy: Taxonomy(
-        groups: [for (final g in groups) taxon(g)],
-        subgroups: [for (final s in subgroups) taxon(s, 'group_id')],
-        categories: [for (final c in categories) taxon(c, 'subgroup_id')],
-      ),
+      taxonomy: Taxonomy.fromRows(groups: groups, subgroups: subgroups, categories: categories, imageUrl: imageUrl),
       syncedAt: syncedAt,
     );
   }
 }
 
-/// Downloads the published catalogue. Needs a signed-in client (row-level security only lets `authenticated` read).
-Future<Catalogue> fetchCatalogue(SupabaseClient c, BackendConfig config) async {
+/// Brings [current] up to date with the published catalogue, or downloads all of it when it has no cursor. Needs a
+/// signed-in client (row-level security only lets `authenticated` read). The taxonomy and aliases are small and come
+/// whole every time; records come from `catalogue_changes`, slimmed to what the app reads, and only those changed
+/// since the cursor. The ask starts [overlap] before the time of the sync if the cursor is later than that, so a
+/// publish still being written when the last sync ran is not missed. If the result does not have as many records as
+/// are published (records deleted outright, say), it downloads everything again.
+Future<Catalogue> fetchCatalogue(SupabaseClient c, BackendConfig config,
+    {Catalogue? current, Duration overlap = const Duration(minutes: 15)}) async {
   const page = 1000;
+  final startedAt = DateTime.now().toUtc();
   Future<List<Map<String, dynamic>>> all(String table, String columns, String order) async {
     final out = <Map<String, dynamic>>[];
     for (var from = 0;; from += page) {
@@ -315,29 +385,43 @@ Future<Catalogue> fetchCatalogue(SupabaseClient c, BackendConfig config) async {
     }
   }
 
-  final groups = await all('food_groups', 'id,name,position,image_path,image_alt', 'id');
-  final subgroups = await all('food_subgroups', 'id,group_id,name,position,image_path,image_alt', 'id');
-  final categories = await all('food_categories', 'id,subgroup_id,name,position,image_path,image_alt', 'id');
-  final records = (await all('records', 'id,role,category_id,current_revision_id', 'id'))
-      .where((r) => r['current_revision_id'] != null)
-      .toList();
-  final aliases = await all('aliases', 'from_id,to_id', 'from_id');
+  final taxonomy = Taxonomy.fromRows(
+    groups: await all('food_groups', 'id,name,position,image_path,image_alt', 'id'),
+    subgroups: await all('food_subgroups', 'id,group_id,name,position,image_path,image_alt', 'id'),
+    categories: await all('food_categories', 'id,subgroup_id,name,position,image_path,image_alt', 'id'),
+    imageUrl: (path) => config.publicUrl('taxonomy-art', path),
+  );
+  final aliases = {for (final a in await all('aliases', 'from_id,to_id', 'from_id')) a['from_id'] as String: a['to_id'] as String};
 
-  // Only each record's current revision; ids go in the query string, so ask in batches.
-  final ids = [for (final r in records) r['current_revision_id'] as String];
-  final revisions = <Map<String, dynamic>>[];
-  for (var i = 0; i < ids.length; i += 100) {
-    revisions.addAll(await c.from('record_revisions').select('id,record_id,data').inFilter('id', ids.sublist(i, i + 100 > ids.length ? ids.length : i + 100)));
+  Future<Catalogue> sync(Catalogue? base) async {
+    final full = base?.cursor == null;
+    final earliest = startedAt.subtract(overlap);
+    String? after = switch (base?.cursor) {
+      null => null,
+      final at when at.isAfter(earliest) => earliest.toIso8601String(),
+      final at => at.toUtc().toIso8601String(),
+    };
+    String? afterId;
+    final changes = <Map<String, dynamic>>[];
+    while (true) {
+      final rows = ((await c.rpc('catalogue_changes', params: {
+        'p_after': after,
+        'p_after_id': afterId,
+        'p_published_only': full,
+        'p_limit': page,
+      })) as List)
+          .cast<Map<String, dynamic>>();
+      changes.addAll(rows);
+      if (rows.length < page) break;
+      after = rows.last['updated_at'] as String;
+      afterId = rows.last['id'] as String;
+    }
+    return (base ?? Catalogue.empty)
+        .withChanges(changes, full: full, taxonomy: taxonomy, aliases: aliases, syncedAt: DateTime.now());
   }
 
-  return Catalogue.fromRows(
-    groups: groups,
-    subgroups: subgroups,
-    categories: categories,
-    records: records,
-    revisions: revisions,
-    aliases: aliases,
-    imageUrl: (path) => config.publicUrl('taxonomy-art', path),
-    syncedAt: DateTime.now(),
-  );
+  final next = await sync(current);
+  if (current?.cursor == null) return next;
+  final published = await c.from('records').count(CountOption.exact).not('current_revision_id', 'is', null);
+  return published == next.records.length ? next : sync(null);
 }
