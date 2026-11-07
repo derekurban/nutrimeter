@@ -7,9 +7,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../data/label_review.dart';
 import '../data/store.dart';
+import '../logic/label_reading.dart';
 import 'backend_config.dart';
 import 'catalogue.dart';
+import 'label_pipeline.dart';
 import 'submissions.dart';
 
 class Backend {
@@ -46,6 +49,7 @@ class Backend {
   static Future<void>? _download;
   static bool _uploading = false;
   static bool _again = false;
+  static bool _publishing = false;
 
   /// Signed in, so the catalogue can be downloaded.
   static bool get signedIn => _client?.auth.currentUser != null;
@@ -93,8 +97,10 @@ class Backend {
   /// throws: a failure is in [syncError].
   static Future<void> sync(AppState state, {bool force = false}) {
     final c = _client;
-    if (c == null || c.auth.currentUser == null) return Future.value();
+    if (c == null) return Future.value();
+    if (c.auth.currentUser == null) return syncTaxonomy(state, force: force);
     unawaited(uploadPending(state));
+    unawaited(publishReviews(state));
     final running = _download;
     if (running != null) return running;
     if (!due(last: _synced, now: DateTime.now(), force: force, awaitingReview: state.awaitingReview)) return Future.value();
@@ -150,6 +156,75 @@ class Backend {
       } while (_again);
     } finally {
       _uploading = false;
+    }
+  }
+
+  /// Publishes every review accepted on this phone and not published yet: its submission and photos (never queued
+  /// for the desktop), then `publish_device_review`, which records the readings, the person's review, the revision and
+  /// the alias in one transaction. Failures stay on the review (with their reason) and are retried on the next sync.
+  static Future<void> publishReviews(AppState state) async {
+    final c = _client;
+    final dir = state.dataDir;
+    if (c == null || c.auth.currentUser == null || dir == null || _publishing) return;
+    _publishing = true;
+    try {
+      for (final r in state.labelReviews.values.where((r) => r.stage == ReviewStage.accepted && !r.published).toList()) {
+        var review = r;
+        try {
+          if (!review.uploaded) {
+            final sent = await uploadSubmission(c, review.submission, dataDir: dir, queue: false, onProgress: (s) {
+              final now = state.labelReviews[review.id];
+              if (now != null) state.putReview(now.copyWith(photos: s.photos));
+            });
+            review = state.labelReviews[review.id]!.copyWith(photos: sent.photos, uploaded: true);
+            state.putReview(review);
+          }
+          final view = state.labelReviews[review.id]!;
+          final seen = LabelPipeline.linesOf(state, view);
+          final firstRun = view.runs.where((x) => x.kind == 'first-read' && x.status == 'done').lastOrNull;
+          await c.rpc('publish_device_review', params: {
+            'p_submission': view.id,
+            'p_agent': 'device:${firstRun?.provider ?? 'unknown'}/${firstRun?.model ?? 'unknown'}',
+            'p_model': firstRun?.model,
+            'p_prompt_version': readingVersion,
+            'p_payload': {'first_read': view.firstRead, 'second_read': view.secondRead, 'verifier': view.verifier},
+            'p_derived': {'record': view.record},
+            'p_checks': [for (final x in seen.checks) x.toJson()],
+            'p_trace': {
+              'runs': [for (final x in view.runs) x.toJson()],
+              'decisions': {for (final e in view.decisions.entries) e.key: e.value.toJson()},
+              'rechecked': view.rechecked,
+              'cost_usd': view.costUsd,
+            },
+            'p_edits': reviewEdits(seen.lines),
+            'p_publish': {'record_id': view.recordId, 'category_id': view.categoryId, 'data': view.record},
+          });
+          state.putReview(state.labelReviews[review.id]!.copyWith(published: true, publishError: () => null));
+        } catch (e) {
+          final now = state.labelReviews[review.id];
+          if (now != null) state.putReview(now.copyWith(publishError: () => describeError(e)));
+          if (_offline(e)) return;
+        }
+      }
+    } finally {
+      _publishing = false;
+    }
+  }
+
+  static DateTime? _taxonomySynced;
+
+  /// Signed out, only the taxonomy syncs (on launch, then at most every half hour): the pictures and the categories a
+  /// label is filed under. Signed in, the catalogue sync brings it. Never throws.
+  static Future<void> syncTaxonomy(AppState state, {bool force = false}) async {
+    final c = _client;
+    if (c == null) return;
+    final last = _taxonomySynced;
+    if (!force && last != null && DateTime.now().difference(last) < every) return;
+    try {
+      state.setTaxonomy(await fetchTaxonomy(c, config));
+      _taxonomySynced = DateTime.now();
+    } catch (e) {
+      debugPrint('Taxonomy sync: ${describeError(e)}');
     }
   }
 

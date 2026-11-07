@@ -205,12 +205,14 @@ bool _duplicateObject(StorageException e) =>
 
 /// Sends one submission to the review queue: the `submissions` row, then each photo (object, then its row), then
 /// `queue_submission`. Every step is idempotent, so an interrupted upload simply runs again; [onProgress] gets the
-/// submission after each step so the progress can be saved. Photos whose files are gone are dropped.
+/// submission after each step so the progress can be saved. Photos whose files are gone are dropped. With
+/// [queue] false the submission stays out of the desktop's queue (a review done on the phone publishes it instead).
 Future<PendingSubmission> uploadSubmission(
   SupabaseClient c,
   PendingSubmission submission, {
   required Directory dataDir,
   required void Function(PendingSubmission) onProgress,
+  bool queue = true,
 }) async {
   final uid = c.auth.currentUser?.id;
   if (uid == null) throw StateError('Sign in to send products for review.');
@@ -258,6 +260,7 @@ Future<PendingSubmission> uploadSubmission(
     onProgress(s);
   }
 
+  if (!queue) return s;
   try {
     await c.rpc('queue_submission', params: {'p_submission': s.id});
   } on PostgrestException catch (e) {

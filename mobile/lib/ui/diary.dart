@@ -6,8 +6,10 @@ import '../data/nutrients.dart';
 import '../data/store.dart';
 import '../logic/foods.dart';
 import 'food_detail.dart';
+import 'added_products.dart';
 import 'food_picker.dart';
 import 'nutrition.dart';
+import 'product_flow.dart';
 import 'recipes.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -143,6 +145,7 @@ class _DiaryPageState extends State<DiaryPage> {
         ),
       ]),
       body: ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 112), children: [
+        OpenReviewsBanner(onOpen: (r) => resumeReview(context, r, date: _date)),
         EnergySummary(amounts: totals, targets: state.resolvedTargets),
         for (final meal in Meal.values)
           _MealCard(

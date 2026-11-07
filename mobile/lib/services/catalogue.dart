@@ -221,6 +221,10 @@ class Catalogue {
 
   bool get isEmpty => records.isEmpty && aliases.isEmpty;
 
+  /// The same catalogue under a fresher [taxonomy] (pictures and names), records and cursor untouched.
+  Catalogue withTaxonomy(Taxonomy taxonomy) =>
+      Catalogue(records: records, aliases: aliases, taxonomy: taxonomy, syncedAt: syncedAt, cursor: cursor, fallbackNames: fallbackNames);
+
   /// The same catalogue, naming records published without a name from [names].
   Catalogue withFallbackNames(Map<String, String> names) =>
       Catalogue(records: records, aliases: aliases, taxonomy: taxonomy, syncedAt: syncedAt, cursor: cursor, fallbackNames: names);
@@ -366,6 +370,19 @@ class Catalogue {
   }
 }
 
+/// The taxonomy with its pictures. Readable without an account (it is public and cosmetic), so a phone that is not
+/// signed in still shows each food's picture.
+Future<Taxonomy> fetchTaxonomy(SupabaseClient c, BackendConfig config) async {
+  Future<List<Map<String, dynamic>>> all(String table, String columns) async =>
+      (await c.from(table).select(columns).order('id').range(0, 999)).cast<Map<String, dynamic>>();
+  return Taxonomy.fromRows(
+    groups: await all('food_groups', 'id,name,position,image_path,image_alt'),
+    subgroups: await all('food_subgroups', 'id,group_id,name,position,image_path,image_alt'),
+    categories: await all('food_categories', 'id,subgroup_id,name,position,image_path,image_alt'),
+    imageUrl: (path) => config.publicUrl('taxonomy-art', path),
+  );
+}
+
 /// Brings [current] up to date with the published catalogue, or downloads all of it when it has no cursor. Needs a
 /// signed-in client (row-level security only lets `authenticated` read). The taxonomy and aliases are small and come
 /// whole every time; records come from `catalogue_changes`, slimmed to what the app reads, and only those changed
@@ -385,12 +402,7 @@ Future<Catalogue> fetchCatalogue(SupabaseClient c, BackendConfig config,
     }
   }
 
-  final taxonomy = Taxonomy.fromRows(
-    groups: await all('food_groups', 'id,name,position,image_path,image_alt', 'id'),
-    subgroups: await all('food_subgroups', 'id,group_id,name,position,image_path,image_alt', 'id'),
-    categories: await all('food_categories', 'id,subgroup_id,name,position,image_path,image_alt', 'id'),
-    imageUrl: (path) => config.publicUrl('taxonomy-art', path),
-  );
+  final taxonomy = await fetchTaxonomy(c, config);
   final aliases = {for (final a in await all('aliases', 'from_id,to_id', 'from_id')) a['from_id'] as String: a['to_id'] as String};
 
   Future<Catalogue> sync(Catalogue? base) async {
