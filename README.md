@@ -7,12 +7,14 @@ account on Supabase carries product photos to review and brings the reviewed cat
 **Food data**
 - **Generic foods** (produce, meat, grains, dairy) come from the [Canadian Nutrient File](https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data/canadian-nutrient-file-about-us.html)
   2026 (Health Canada): 5,993 foods with up to 173 nutrients, bundled in the app and searched on the device.
-- **Packaged products** come from your own photos. A barcode scan or search that finds nothing lets you photograph
-  the package (front, Nutrition Facts table, ingredients) and log the product by weight straight away; once its
-  label is reviewed, its nutrition fills in under the same food. Signing in (optional, Targets → Food review) sends
-  the photos for review and syncs the reviewed catalogue to the phone, where it works offline. Design:
-  `docs/food-model/`. Reviews happen in Nutrimeter Admin, a separate, private desktop server and phone app, where
-  Codex reads the label and draws the taxonomy's illustrations. A person accepts or rejects every product. Photos,
+- **Packaged products** come from your own photos. A barcode scan or search that finds nothing is a new find: you
+  photograph the front and the Nutrition Facts table (ingredients optional), and the label is read on the phone with
+  your own Anthropic or OpenAI key (Targets → Label reading): two independent reads, arithmetic checks, and a stronger
+  verifier for whatever is still in doubt. You settle the rest against the photos, and the product is in your foods at
+  once and published to the catalogue (`mobile/README.md`, "Label reading on the phone"). Without a key, the photos go
+  to Nutrimeter Admin, a separate, private desktop server and phone app, where Codex reads the label and draws the
+  taxonomy's illustrations. Signing in (optional, Targets → Food review) publishes and syncs the reviewed catalogue to
+  the phone, where it works offline. Design: `docs/food-model/`. A person accepts every product either way. Photos,
   readings and decisions are kept for good.
 
 **Android app:** `mobile/` is the Flutter app (Android and iOS projects; Android is what's built and tested).

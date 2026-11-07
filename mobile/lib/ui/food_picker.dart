@@ -7,8 +7,8 @@ import '../data/store.dart';
 import '../logic/barcode.dart';
 import '../logic/foods.dart';
 import '../services/backend.dart';
-import 'capture.dart';
 import 'food_detail.dart';
+import 'product_flow.dart';
 import 'scanner.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -102,17 +102,20 @@ class _FoodPickerPageState extends State<FoodPickerPage> {
     }
     if (!mounted) return;
     if (food != null) return _open(food);
-    await _addProduct(barcode: code);
+    // A product already being read on this phone picks up where it is; anything else is a new find.
+    final open = state.openReviewForGtin(code.gtin14);
+    final added = await openProductFlow(context, barcode: open == null ? code : null, reviewId: open?.id);
+    if (added != null && mounted) await _open(added, justAdded: added.source == FoodSource.catalogue);
   }
 
   Future<void> _addProduct({Gtin? barcode, String? name}) async {
-    final food = await captureProduct(context, barcode: barcode, nameHint: name);
-    if (food != null && mounted) await _open(food);
+    final food = await openProductFlow(context, barcode: barcode, nameHint: name);
+    if (food != null && mounted) await _open(food, justAdded: food.source == FoodSource.catalogue);
   }
 
-  Future<void> _open(Food food) async {
+  Future<void> _open(Food food, {bool justAdded = false}) async {
     final result = await Navigator.of(context).push<PickResult>(MaterialPageRoute(
-      builder: (_) => FoodDetailPage(food: food, actionLabel: widget.actionLabel, meal: widget.meal),
+      builder: (_) => FoodDetailPage(food: food, actionLabel: widget.actionLabel, meal: widget.meal, justAdded: justAdded),
     ));
     if (result != null && mounted) Navigator.of(context).pop(result);
   }
