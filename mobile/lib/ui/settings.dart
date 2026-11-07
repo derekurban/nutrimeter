@@ -7,6 +7,7 @@ import '../data/nutrients.dart';
 import '../data/store.dart';
 import '../logic/targets.dart';
 import '../version.dart';
+import 'reading_settings_page.dart';
 import 'review.dart';
 import 'theme.dart';
 import 'updates.dart';
@@ -154,6 +155,8 @@ class SettingsPage extends StatelessWidget {
               ]),
             ),
           ],
+          const SectionTitle('Label reading'),
+          const LabelReadingCard(),
           const SectionTitle('Food review'),
           const FoodReviewCard(),
           const SectionTitle('Your data'),

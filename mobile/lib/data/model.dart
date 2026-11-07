@@ -105,12 +105,12 @@ class Food {
 
   bool get hasNutrition => nutrients['energy'] != null;
 
-  Food copyWith({String? name, String? brand, Nutrients? nutrients, List<Serving>? servings, bool? archived}) => Food(
+  Food copyWith({String? name, String? brand, String? Function()? imageUrl, Nutrients? nutrients, List<Serving>? servings, bool? archived}) => Food(
         id: id,
         source: source,
         name: name ?? this.name,
         brand: brand ?? this.brand,
-        imageUrl: imageUrl,
+        imageUrl: imageUrl != null ? imageUrl() : this.imageUrl,
         barcode: barcode,
         nutrients: nutrients ?? this.nutrients,
         servings: servings ?? this.servings,
