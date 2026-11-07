@@ -37,7 +37,7 @@ void main() {
     expect(find.text('240 kcal'), findsOneWidget);
   });
 
-  testWidgets('a search miss offers to add the product from photos', (tester) async {
+  testWidgets('a search miss is a new find, read from the label', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.5;
     addTearDown(tester.view.reset);
@@ -51,16 +51,31 @@ void main() {
     expect(find.text('Add a product'), findsOneWidget);
 
     await tester.tap(find.text('Add a product'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('You found something new'), findsOneWidget);
+    expect(find.text('“zzqx crackers”'), findsOneWidget);
+    // Nothing else is offered: no logging by weight, no generic instead.
+    expect(find.textContaining('weight'), findsNothing);
+
+    await tester.tap(find.text('Add it'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Photograph the label'), findsOneWidget);
     expect(find.text('Front'), findsOneWidget);
-    expect(find.text('Nutrition Facts table'), findsOneWidget);
+    expect(find.text('Nutrition table'), findsOneWidget);
     expect(find.text('Ingredients'), findsOneWidget);
-    expect(find.text('This product has no ingredient list'), findsOneWidget);
-    // The search becomes the name hint; nothing can be saved until the front, nutrition and ingredients photos are in.
-    expect(find.widgetWithText(TextField, 'zzqx crackers'), findsOneWidget);
-    final save = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Add the front, nutrition and ingredients photos'));
-    expect(save.onPressed, isNull);
-    await tester.dragUntilVisible(find.textContaining('You are not signed in'), find.byType(ListView).last, const Offset(0, -300));
-    expect(find.textContaining('You are not signed in'), findsOneWidget);
+    expect(find.text('Optional, worth it'), findsOneWidget);
+    expect(state.labelReviews.values.single.nameHint, 'zzqx crackers');
+    // Without a key, the way forward is to add one; the desktop queue needs the two photos first.
+    expect(find.text('Add an API key to read it here'), findsOneWidget);
+    final desk = tester.widget<TextButton>(find.widgetWithText(TextButton, 'Send it to the desktop review instead'));
+    expect(desk.onPressed, isNull);
+
+    // Leaving with no photos forgets it.
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(state.labelReviews, isEmpty);
   });
 }

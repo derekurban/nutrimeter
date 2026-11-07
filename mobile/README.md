@@ -20,6 +20,12 @@ In-app updates and links are two small method channels in `MainActivity.kt`.
 | `lib/services/backend.dart` | Supabase from the app's side: start-up, sign-in, catalogue sync on launch and resume (every resume while products wait for review), the upload queue |
 | `lib/services/catalogue.dart` | The published catalogue: download, offline cache, record → `Food`, aliases, search |
 | `lib/services/submissions.dart` | Captured products waiting to upload (persisted), the idempotent upload, submission status |
+| `lib/services/taxonomy_asset.dart` | The food taxonomy bundled as `assets/taxonomy.json` (identical in dev, staging and prod, without pictures), used until the taxonomy first syncs; regenerate it if a migration changes the categories. The taxonomy and its pictures sync without an account (`20261107130000_public_taxonomy.sql`), so pictures show signed out |
+| `lib/services/llm.dart` | Anthropic Messages API (streamed) and OpenAI Responses API over plain HTTP: photos in, schema-constrained JSON out, tokens and cost |
+| `lib/services/reading_settings.dart` | API keys (Android Keystore), which model does each reading step, the confidence bar, spend |
+| `lib/services/label_pipeline.dart` | Runs a label review on the phone, step by step, saved after each step |
+| `lib/logic/label_reading.dart` | The pure part of label reading: schemas, briefs, checks, review lines with confidence, the record a review publishes |
+| `lib/data/label_review.dart` | A product being read and reviewed on the phone: photos, every model call, readings, decisions, publish state |
 | `lib/logic/update.dart` | Updates and feedback, the pure part: reading GitHub releases, picking one, comparing versions, issue links |
 | `lib/services/platform.dart` | The Android calls behind updates and links (`MainActivity.kt`, `UpdateReceiver.kt`) |
 | `lib/ui/` | `diary` (home), `food_picker` + `food_detail` (search and log), `scanner`, `capture` (add a product from photos), `review` (sign-in card, submissions), `recipes`, `custom_foods`, `settings` (targets, food review, data, updates, feedback, attribution), `updates` (the updater, its panel and trail, feedback links), shared `widgets`, `nutrition` panels, `theme` (below) |
@@ -159,6 +165,30 @@ card. Without signing in, or offline, everything else works as before.
   row, then `queue_submission`. Each step tolerates having already happened, so a retry never duplicates anything.
   Once queued, the local photos are deleted. Targets → Food review → Submissions lists them with their status
   (claimed and drafted read "In review") and the reviewer's comment on a rejection.
+
+## Label reading on the phone
+
+A scan or search that finds nothing is a new find: the person photographs the front and the nutrition table
+(ingredients optional) and the label is read on the phone with their own Anthropic or OpenAI key (Targets → Label
+reading; keys live in the Android Keystore via `flutter_secure_storage`, never in the data file or a backup). Without a
+key the photos can still go to the desktop queue as before.
+
+1. **First read** (default Claude Opus 5.5, or GPT-6.1 Sol with only an OpenAI key): the whole package transcribed, as
+   in the admin's digitise-v1, plus a box for each line on its photo. A partly legible table, unusable photos, photos of
+   different products or "not food" pause the reading with a retake-or-carry-on choice.
+2. **Second read** (a different model, the other provider's when both keys exist): the nutrition photo alone.
+3. **Checks** on the phone: the reads compared, calories against macros, fats, sugars, fibre, mass, claims, the
+   ingredient order, servings per container.
+4. **Verifier** (default Claude Fable 5.1 or GPT-6 Astra): only the lines still under the confidence bar, asked what
+   the photo prints. Skipped when nothing is in doubt.
+
+Each line gets a confidence (two agreeing reads 99%, a disagreement 45%, lowered by the reader's caveats and failed
+checks, raised by a clear verifier reading). The review opens on the lines under the bar (90% by default, adjustable)
+with the photo moved to each; notes for the verifier are sent together in one re-read. Accepting builds the record
+(schema 2 plus `per_100g` and gram portions, like the admin's digitised records), saves it as a food at once, opens it
+for logging, and publishes it while signed in: the submission and photos are uploaded without being queued, then
+`publish_device_review` (migration `20261107120000_device_reviews.sql`) records the readings, the person's review, the
+revision and the alias. Every step is saved, so a closed app resumes where it stopped; nothing is re-run unasked.
 
 ## Behaviour worth knowing
 

@@ -1,0 +1,1368 @@
+{
+ "source": "USDA WWEIA food categories as published in the Nutrimeter catalogue (identical in dev, staging and prod, 2026-11-07)",
+ "groups": [
+  {
+   "id": "alcoholic-beverages",
+   "name": "Alcoholic Beverages",
+   "position": 9
+  },
+  {
+   "id": "baby-foods-and-formulas",
+   "name": "Baby Foods and Formulas",
+   "position": 14
+  },
+  {
+   "id": "beverages",
+   "name": "Beverages",
+   "position": 8
+  },
+  {
+   "id": "condiments-and-sauces",
+   "name": "Condiments and Sauces",
+   "position": 12
+  },
+  {
+   "id": "fats-and-oils",
+   "name": "Fats and Oils",
+   "position": 11
+  },
+  {
+   "id": "fruit",
+   "name": "Fruit",
+   "position": 6
+  },
+  {
+   "id": "grains",
+   "name": "Grains",
+   "position": 4
+  },
+  {
+   "id": "milk-and-dairy",
+   "name": "Milk and Dairy",
+   "position": 1
+  },
+  {
+   "id": "mixed-dishes",
+   "name": "Mixed Dishes",
+   "position": 3
+  },
+  {
+   "id": "other",
+   "name": "Other",
+   "position": 15
+  },
+  {
+   "id": "protein-foods",
+   "name": "Protein Foods",
+   "position": 2
+  },
+  {
+   "id": "snacks-and-sweets",
+   "name": "Snacks and Sweets",
+   "position": 5
+  },
+  {
+   "id": "sugars",
+   "name": "Sugars",
+   "position": 13
+  },
+  {
+   "id": "vegetables",
+   "name": "Vegetables",
+   "position": 7
+  },
+  {
+   "id": "water",
+   "name": "Water",
+   "position": 10
+  }
+ ],
+ "subgroups": [
+  {
+   "id": "100-percent-juice",
+   "name": "100% Juice",
+   "parentId": "beverages",
+   "position": 36
+  },
+  {
+   "id": "alcoholic-beverages",
+   "name": "Alcoholic Beverages",
+   "parentId": "alcoholic-beverages",
+   "position": 40
+  },
+  {
+   "id": "baby-beverages",
+   "name": "Baby Beverages",
+   "parentId": "baby-foods-and-formulas",
+   "position": 47
+  },
+  {
+   "id": "baby-foods",
+   "name": "Baby Foods",
+   "parentId": "baby-foods-and-formulas",
+   "position": 46
+  },
+  {
+   "id": "breads-rolls-tortillas",
+   "name": "Breads, Rolls, Tortillas",
+   "parentId": "grains",
+   "position": 23
+  },
+  {
+   "id": "candy",
+   "name": "Candy",
+   "parentId": "snacks-and-sweets",
+   "position": 31
+  },
+  {
+   "id": "cheese",
+   "name": "Cheese",
+   "parentId": "milk-and-dairy",
+   "position": 4
+  },
+  {
+   "id": "coffee-and-tea",
+   "name": "Coffee and Tea",
+   "parentId": "beverages",
+   "position": 39
+  },
+  {
+   "id": "condiments-and-sauces",
+   "name": "Condiments and Sauces",
+   "parentId": "condiments-and-sauces",
+   "position": 44
+  },
+  {
+   "id": "cooked-cereals",
+   "name": "Cooked Cereals",
+   "parentId": "grains",
+   "position": 26
+  },
+  {
+   "id": "cooked-grains",
+   "name": "Cooked Grains",
+   "parentId": "grains",
+   "position": 22
+  },
+  {
+   "id": "crackers",
+   "name": "Crackers",
+   "parentId": "snacks-and-sweets",
+   "position": 28
+  },
+  {
+   "id": "cured-meats-poultry",
+   "name": "Cured Meats/Poultry",
+   "parentId": "protein-foods",
+   "position": 11
+  },
+  {
+   "id": "dairy-drinks",
+   "name": "Dairy Drinks",
+   "parentId": "milk-and-dairy",
+   "position": 3
+  },
+  {
+   "id": "diet-beverages",
+   "name": "Diet Beverages",
+   "parentId": "beverages",
+   "position": 37
+  },
+  {
+   "id": "eggs",
+   "name": "Eggs",
+   "parentId": "protein-foods",
+   "position": 10
+  },
+  {
+   "id": "fats-and-oils",
+   "name": "Fats and Oils",
+   "parentId": "fats-and-oils",
+   "position": 43
+  },
+  {
+   "id": "flavored-milk",
+   "name": "Flavored Milk",
+   "parentId": "milk-and-dairy",
+   "position": 2
+  },
+  {
+   "id": "flavored-or-enhanced-water",
+   "name": "Flavored or Enhanced Water",
+   "parentId": "water",
+   "position": 42
+  },
+  {
+   "id": "fruits",
+   "name": "Fruits",
+   "parentId": "fruit",
+   "position": 33
+  },
+  {
+   "id": "human-milk",
+   "name": "Human Milk",
+   "parentId": "baby-foods-and-formulas",
+   "position": 49
+  },
+  {
+   "id": "infant-formulas",
+   "name": "Infant Formulas",
+   "parentId": "baby-foods-and-formulas",
+   "position": 48
+  },
+  {
+   "id": "meats",
+   "name": "Meats",
+   "parentId": "protein-foods",
+   "position": 7
+  },
+  {
+   "id": "milk",
+   "name": "Milk",
+   "parentId": "milk-and-dairy",
+   "position": 1
+  },
+  {
+   "id": "mixed-dishes-asian",
+   "name": "Mixed Dishes – Asian",
+   "parentId": "mixed-dishes",
+   "position": 17
+  },
+  {
+   "id": "mixed-dishes-bean-vegetable-based",
+   "name": "Mixed Dishes – Bean/Vegetable-based",
+   "parentId": "mixed-dishes",
+   "position": 15
+  },
+  {
+   "id": "mixed-dishes-grain-based",
+   "name": "Mixed Dishes – Grain-based",
+   "parentId": "mixed-dishes",
+   "position": 16
+  },
+  {
+   "id": "mixed-dishes-meat-poultry-seafood",
+   "name": "Mixed Dishes – Meat, Poultry, Seafood",
+   "parentId": "mixed-dishes",
+   "position": 14
+  },
+  {
+   "id": "mixed-dishes-mexican",
+   "name": "Mixed Dishes – Mexican",
+   "parentId": "mixed-dishes",
+   "position": 18
+  },
+  {
+   "id": "mixed-dishes-pizza",
+   "name": "Mixed Dishes – Pizza",
+   "parentId": "mixed-dishes",
+   "position": 19
+  },
+  {
+   "id": "mixed-dishes-sandwiches",
+   "name": "Mixed Dishes – Sandwiches",
+   "parentId": "mixed-dishes",
+   "position": 20
+  },
+  {
+   "id": "mixed-dishes-soups",
+   "name": "Mixed Dishes – Soups",
+   "parentId": "mixed-dishes",
+   "position": 21
+  },
+  {
+   "id": "other",
+   "name": "Other",
+   "parentId": "other",
+   "position": 50
+  },
+  {
+   "id": "other-desserts",
+   "name": "Other Desserts",
+   "parentId": "snacks-and-sweets",
+   "position": 32
+  },
+  {
+   "id": "plain-water",
+   "name": "Plain Water",
+   "parentId": "water",
+   "position": 41
+  },
+  {
+   "id": "plant-based-dairy",
+   "name": "Plant-based Dairy",
+   "parentId": "milk-and-dairy",
+   "position": 6
+  },
+  {
+   "id": "plant-based-protein-foods",
+   "name": "Plant-based Protein Foods",
+   "parentId": "protein-foods",
+   "position": 12
+  },
+  {
+   "id": "poultry",
+   "name": "Poultry",
+   "parentId": "protein-foods",
+   "position": 8
+  },
+  {
+   "id": "protein-and-nutritional-powders",
+   "name": "Protein and Nutritional Powders",
+   "parentId": "protein-foods",
+   "position": 13
+  },
+  {
+   "id": "quick-breads-and-bread-products",
+   "name": "Quick Breads and Bread Products",
+   "parentId": "grains",
+   "position": 24
+  },
+  {
+   "id": "ready-to-eat-cereals",
+   "name": "Ready-to-Eat Cereals",
+   "parentId": "grains",
+   "position": 25
+  },
+  {
+   "id": "savory-snacks",
+   "name": "Savory Snacks",
+   "parentId": "snacks-and-sweets",
+   "position": 27
+  },
+  {
+   "id": "seafood",
+   "name": "Seafood",
+   "parentId": "protein-foods",
+   "position": 9
+  },
+  {
+   "id": "snack-meal-bars",
+   "name": "Snack/Meal Bars",
+   "parentId": "snacks-and-sweets",
+   "position": 29
+  },
+  {
+   "id": "sugars",
+   "name": "Sugars",
+   "parentId": "sugars",
+   "position": 45
+  },
+  {
+   "id": "sweet-bakery-products",
+   "name": "Sweet Bakery Products",
+   "parentId": "snacks-and-sweets",
+   "position": 30
+  },
+  {
+   "id": "sweetened-beverages",
+   "name": "Sweetened Beverages",
+   "parentId": "beverages",
+   "position": 38
+  },
+  {
+   "id": "vegetables-excluding-potatoes",
+   "name": "Vegetables, excluding Potatoes",
+   "parentId": "vegetables",
+   "position": 34
+  },
+  {
+   "id": "white-potatoes",
+   "name": "White Potatoes",
+   "parentId": "vegetables",
+   "position": 35
+  },
+  {
+   "id": "yogurt",
+   "name": "Yogurt",
+   "parentId": "milk-and-dairy",
+   "position": 5
+  }
+ ],
+ "categories": [
+  {
+   "id": "apple",
+   "name": "Apple",
+   "parentId": "fruits",
+   "position": 85
+  },
+  {
+   "id": "apple-juice",
+   "name": "Apple juice",
+   "parentId": "100-percent-juice",
+   "position": 118
+  },
+  {
+   "id": "baby-food-cereals",
+   "name": "Baby food: cereals",
+   "parentId": "baby-foods",
+   "position": 153
+  },
+  {
+   "id": "baby-food-fruit",
+   "name": "Baby food: fruit",
+   "parentId": "baby-foods",
+   "position": 154
+  },
+  {
+   "id": "baby-food-meat-and-dinners",
+   "name": "Baby food: meat and dinners",
+   "parentId": "baby-foods",
+   "position": 157
+  },
+  {
+   "id": "baby-food-mixtures",
+   "name": "Baby food: mixtures",
+   "parentId": "baby-foods",
+   "position": 156
+  },
+  {
+   "id": "baby-food-snacks-and-sweets",
+   "name": "Baby food: snacks and sweets",
+   "parentId": "baby-foods",
+   "position": 159
+  },
+  {
+   "id": "baby-food-vegetables",
+   "name": "Baby food: vegetables",
+   "parentId": "baby-foods",
+   "position": 155
+  },
+  {
+   "id": "baby-food-yogurt",
+   "name": "Baby food: yogurt",
+   "parentId": "baby-foods",
+   "position": 158
+  },
+  {
+   "id": "baby-juice",
+   "name": "Baby juice",
+   "parentId": "baby-beverages",
+   "position": 160
+  },
+  {
+   "id": "baby-water",
+   "name": "Baby water",
+   "parentId": "baby-beverages",
+   "position": 161
+  },
+  {
+   "id": "bacon",
+   "name": "Bacon",
+   "parentId": "cured-meats-poultry",
+   "position": 22
+  },
+  {
+   "id": "bagels-and-english-muffins",
+   "name": "Bagels and English muffins",
+   "parentId": "breads-rolls-tortillas",
+   "position": 62
+  },
+  {
+   "id": "bananas",
+   "name": "Bananas",
+   "parentId": "fruits",
+   "position": 86
+  },
+  {
+   "id": "bean-pea-legume-dishes",
+   "name": "Bean, pea, legume dishes",
+   "parentId": "mixed-dishes-bean-vegetable-based",
+   "position": 32
+  },
+  {
+   "id": "beans-peas-legumes",
+   "name": "Beans, peas, legumes",
+   "parentId": "plant-based-protein-foods",
+   "position": 25
+  },
+  {
+   "id": "beef-excludes-ground",
+   "name": "Beef, excludes ground",
+   "parentId": "meats",
+   "position": 10
+  },
+  {
+   "id": "beer",
+   "name": "Beer",
+   "parentId": "alcoholic-beverages",
+   "position": 131
+  },
+  {
+   "id": "biscuits-muffins-quick-breads",
+   "name": "Biscuits, muffins, quick breads",
+   "parentId": "quick-breads-and-bread-products",
+   "position": 64
+  },
+  {
+   "id": "blueberries-and-other-berries",
+   "name": "Blueberries and other berries",
+   "parentId": "fruits",
+   "position": 90
+  },
+  {
+   "id": "bottled-water",
+   "name": "Bottled water",
+   "parentId": "plain-water",
+   "position": 135
+  },
+  {
+   "id": "broccoli",
+   "name": "Broccoli",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 101
+  },
+  {
+   "id": "burgers",
+   "name": "Burgers",
+   "parentId": "mixed-dishes-sandwiches",
+   "position": 45
+  },
+  {
+   "id": "burritos-and-tacos",
+   "name": "Burritos and tacos",
+   "parentId": "mixed-dishes-mexican",
+   "position": 41
+  },
+  {
+   "id": "butter-and-animal-fats",
+   "name": "Butter and animal fats",
+   "parentId": "fats-and-oils",
+   "position": 138
+  },
+  {
+   "id": "cabbage",
+   "name": "Cabbage",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 106
+  },
+  {
+   "id": "cakes-and-pies",
+   "name": "Cakes and pies",
+   "parentId": "sweet-bakery-products",
+   "position": 77
+  },
+  {
+   "id": "candy-containing-chocolate",
+   "name": "Candy containing chocolate",
+   "parentId": "candy",
+   "position": 80
+  },
+  {
+   "id": "candy-not-containing-chocolate",
+   "name": "Candy not containing chocolate",
+   "parentId": "candy",
+   "position": 81
+  },
+  {
+   "id": "carrots",
+   "name": "Carrots",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 99
+  },
+  {
+   "id": "cereal-bars",
+   "name": "Cereal bars",
+   "parentId": "snack-meal-bars",
+   "position": 75
+  },
+  {
+   "id": "cheese",
+   "name": "Cheese",
+   "parentId": "cheese",
+   "position": 4
+  },
+  {
+   "id": "cheese-sandwiches",
+   "name": "Cheese sandwiches",
+   "parentId": "mixed-dishes-sandwiches",
+   "position": 49
+  },
+  {
+   "id": "chicken-fillet-sandwiches",
+   "name": "Chicken fillet sandwiches",
+   "parentId": "mixed-dishes-sandwiches",
+   "position": 47
+  },
+  {
+   "id": "chicken-patties-nuggets-and-tenders",
+   "name": "Chicken patties, nuggets and tenders",
+   "parentId": "poultry",
+   "position": 16
+  },
+  {
+   "id": "chicken-whole-pieces",
+   "name": "Chicken, whole pieces",
+   "parentId": "poultry",
+   "position": 15
+  },
+  {
+   "id": "citrus-fruits",
+   "name": "Citrus fruits",
+   "parentId": "fruits",
+   "position": 91
+  },
+  {
+   "id": "citrus-juice",
+   "name": "Citrus juice",
+   "parentId": "100-percent-juice",
+   "position": 117
+  },
+  {
+   "id": "coffee",
+   "name": "Coffee",
+   "parentId": "coffee-and-tea",
+   "position": 129
+  },
+  {
+   "id": "cold-cuts-and-cured-meats",
+   "name": "Cold cuts and cured meats",
+   "parentId": "cured-meats-poultry",
+   "position": 21
+  },
+  {
+   "id": "coleslaw-non-lettuce-salads",
+   "name": "Coleslaw, non-lettuce salads",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 112
+  },
+  {
+   "id": "cookies-and-brownies",
+   "name": "Cookies and brownies",
+   "parentId": "sweet-bakery-products",
+   "position": 78
+  },
+  {
+   "id": "corn",
+   "name": "Corn",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 108
+  },
+  {
+   "id": "cottage-ricotta-cheese",
+   "name": "Cottage/ricotta cheese",
+   "parentId": "cheese",
+   "position": 5
+  },
+  {
+   "id": "crackers-excludes-saltines",
+   "name": "Crackers, excludes saltines",
+   "parentId": "crackers",
+   "position": 73
+  },
+  {
+   "id": "cream-and-cream-substitutes",
+   "name": "Cream and cream substitutes",
+   "parentId": "fats-and-oils",
+   "position": 141
+  },
+  {
+   "id": "cream-cheese-sour-cream-whipped-cream",
+   "name": "Cream cheese, sour cream, whipped cream",
+   "parentId": "fats-and-oils",
+   "position": 140
+  },
+  {
+   "id": "deli-and-cured-meat-sandwiches",
+   "name": "Deli and cured meat sandwiches",
+   "parentId": "mixed-dishes-sandwiches",
+   "position": 52
+  },
+  {
+   "id": "diet-soft-drinks",
+   "name": "Diet soft drinks",
+   "parentId": "diet-beverages",
+   "position": 121
+  },
+  {
+   "id": "diet-sport-and-energy-drinks",
+   "name": "Diet sport and energy drinks",
+   "parentId": "diet-beverages",
+   "position": 122
+  },
+  {
+   "id": "dips-gravies-other-sauces",
+   "name": "Dips, gravies, other sauces",
+   "parentId": "condiments-and-sauces",
+   "position": 149
+  },
+  {
+   "id": "doughnuts-sweet-rolls-pastries",
+   "name": "Doughnuts, sweet rolls, pastries",
+   "parentId": "sweet-bakery-products",
+   "position": 79
+  },
+  {
+   "id": "dried-fruits",
+   "name": "Dried fruits",
+   "parentId": "fruits",
+   "position": 93
+  },
+  {
+   "id": "egg-breakfast-sandwiches",
+   "name": "Egg/breakfast sandwiches",
+   "parentId": "mixed-dishes-sandwiches",
+   "position": 48
+  },
+  {
+   "id": "egg-rolls-dumplings-sushi",
+   "name": "Egg rolls, dumplings, sushi",
+   "parentId": "mixed-dishes-asian",
+   "position": 40
+  },
+  {
+   "id": "eggs-and-omelets",
+   "name": "Eggs and omelets",
+   "parentId": "eggs",
+   "position": 20
+  },
+  {
+   "id": "enhanced-water",
+   "name": "Enhanced water",
+   "parentId": "flavored-or-enhanced-water",
+   "position": 137
+  },
+  {
+   "id": "fish",
+   "name": "Fish",
+   "parentId": "seafood",
+   "position": 18
+  },
+  {
+   "id": "flavored-milk",
+   "name": "Flavored milk",
+   "parentId": "flavored-milk",
+   "position": 2
+  },
+  {
+   "id": "flavored-or-carbonated-water",
+   "name": "Flavored or carbonated water",
+   "parentId": "flavored-or-enhanced-water",
+   "position": 136
+  },
+  {
+   "id": "formula-prepared-from-powder",
+   "name": "Formula, prepared from powder",
+   "parentId": "infant-formulas",
+   "position": 163
+  },
+  {
+   "id": "formula-ready-to-feed",
+   "name": "Formula, ready-to-feed",
+   "parentId": "infant-formulas",
+   "position": 162
+  },
+  {
+   "id": "frankfurter-sandwiches",
+   "name": "Frankfurter sandwiches",
+   "parentId": "mixed-dishes-sandwiches",
+   "position": 46
+  },
+  {
+   "id": "frankfurters",
+   "name": "Frankfurters",
+   "parentId": "cured-meats-poultry",
+   "position": 23
+  },
+  {
+   "id": "french-fries-and-other-fried-white-potatoes",
+   "name": "French fries and other fried white potatoes",
+   "parentId": "white-potatoes",
+   "position": 115
+  },
+  {
+   "id": "fried-rice-and-lo-chow-mein",
+   "name": "Fried rice and lo/chow mein",
+   "parentId": "mixed-dishes-asian",
+   "position": 38
+  },
+  {
+   "id": "fried-vegetables",
+   "name": "Fried vegetables",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 111
+  },
+  {
+   "id": "fruit-drinks",
+   "name": "Fruit drinks",
+   "parentId": "sweetened-beverages",
+   "position": 125
+  },
+  {
+   "id": "gelatins-ices-sorbets",
+   "name": "Gelatins, ices, sorbets",
+   "parentId": "other-desserts",
+   "position": 84
+  },
+  {
+   "id": "grapes",
+   "name": "Grapes",
+   "parentId": "fruits",
+   "position": 87
+  },
+  {
+   "id": "grits-and-other-cooked-cereals",
+   "name": "Grits and other cooked cereals",
+   "parentId": "cooked-cereals",
+   "position": 68
+  },
+  {
+   "id": "ground-beef",
+   "name": "Ground beef",
+   "parentId": "meats",
+   "position": 11
+  },
+  {
+   "id": "human-milk",
+   "name": "Human milk",
+   "parentId": "human-milk",
+   "position": 164
+  },
+  {
+   "id": "ice-cream-and-frozen-dairy-desserts",
+   "name": "Ice cream and frozen dairy desserts",
+   "parentId": "other-desserts",
+   "position": 82
+  },
+  {
+   "id": "jams-syrups-toppings",
+   "name": "Jams, syrups, toppings",
+   "parentId": "sugars",
+   "position": 152
+  },
+  {
+   "id": "lamb-goat-game",
+   "name": "Lamb, goat, game",
+   "parentId": "meats",
+   "position": 13
+  },
+  {
+   "id": "lettuce-and-lettuce-salads",
+   "name": "Lettuce and lettuce salads",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 103
+  },
+  {
+   "id": "liquor-and-cocktails",
+   "name": "Liquor and cocktails",
+   "parentId": "alcoholic-beverages",
+   "position": 133
+  },
+  {
+   "id": "liver-and-organ-meats",
+   "name": "Liver and organ meats",
+   "parentId": "meats",
+   "position": 14
+  },
+  {
+   "id": "macaroni-and-cheese",
+   "name": "Macaroni and cheese",
+   "parentId": "mixed-dishes-grain-based",
+   "position": 36
+  },
+  {
+   "id": "mango-and-papaya",
+   "name": "Mango and papaya",
+   "parentId": "fruits",
+   "position": 97
+  },
+  {
+   "id": "margarine",
+   "name": "Margarine",
+   "parentId": "fats-and-oils",
+   "position": 139
+  },
+  {
+   "id": "mashed-potatoes-and-potato-mixtures",
+   "name": "Mashed potatoes and potato mixtures",
+   "parentId": "white-potatoes",
+   "position": 116
+  },
+  {
+   "id": "mayonnaise",
+   "name": "Mayonnaise",
+   "parentId": "fats-and-oils",
+   "position": 142
+  },
+  {
+   "id": "meat-and-bbq-sandwiches",
+   "name": "Meat and BBQ sandwiches",
+   "parentId": "mixed-dishes-sandwiches",
+   "position": 53
+  },
+  {
+   "id": "meat-mixed-dishes",
+   "name": "Meat mixed dishes",
+   "parentId": "mixed-dishes-meat-poultry-seafood",
+   "position": 29
+  },
+  {
+   "id": "melons",
+   "name": "Melons",
+   "parentId": "fruits",
+   "position": 92
+  },
+  {
+   "id": "milk",
+   "name": "Milk",
+   "parentId": "milk",
+   "position": 1
+  },
+  {
+   "id": "milk-shakes-and-other-dairy-drinks",
+   "name": "Milk shakes and other dairy drinks",
+   "parentId": "dairy-drinks",
+   "position": 3
+  },
+  {
+   "id": "mustard-and-other-condiments",
+   "name": "Mustard and other condiments",
+   "parentId": "condiments-and-sauces",
+   "position": 146
+  },
+  {
+   "id": "nachos",
+   "name": "Nachos",
+   "parentId": "mixed-dishes-mexican",
+   "position": 42
+  },
+  {
+   "id": "nutrition-bars",
+   "name": "Nutrition bars",
+   "parentId": "snack-meal-bars",
+   "position": 76
+  },
+  {
+   "id": "nutritional-beverages",
+   "name": "Nutritional beverages",
+   "parentId": "sweetened-beverages",
+   "position": 127
+  },
+  {
+   "id": "nuts-and-seeds",
+   "name": "Nuts and seeds",
+   "parentId": "plant-based-protein-foods",
+   "position": 26
+  },
+  {
+   "id": "oatmeal",
+   "name": "Oatmeal",
+   "parentId": "cooked-cereals",
+   "position": 67
+  },
+  {
+   "id": "olives-pickles-pickled-vegetables",
+   "name": "Olives, pickles, pickled vegetables",
+   "parentId": "condiments-and-sauces",
+   "position": 147
+  },
+  {
+   "id": "onions",
+   "name": "Onions",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 107
+  },
+  {
+   "id": "other-dark-green-vegetables",
+   "name": "Other dark green vegetables",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 104
+  },
+  {
+   "id": "other-diet-drinks",
+   "name": "Other diet drinks",
+   "parentId": "diet-beverages",
+   "position": 123
+  },
+  {
+   "id": "other-fruit-juice",
+   "name": "Other fruit juice",
+   "parentId": "100-percent-juice",
+   "position": 119
+  },
+  {
+   "id": "other-fruits-and-fruit-salads",
+   "name": "Other fruits and fruit salads",
+   "parentId": "fruits",
+   "position": 94
+  },
+  {
+   "id": "other-mexican-mixed-dishes",
+   "name": "Other Mexican mixed dishes",
+   "parentId": "mixed-dishes-mexican",
+   "position": 43
+  },
+  {
+   "id": "other-red-and-orange-vegetables",
+   "name": "Other red and orange vegetables",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 100
+  },
+  {
+   "id": "other-starchy-vegetables",
+   "name": "Other starchy vegetables",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 109
+  },
+  {
+   "id": "other-vegetables-and-combinations",
+   "name": "Other vegetables and combinations",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 110
+  },
+  {
+   "id": "pancakes-waffles-french-toast",
+   "name": "Pancakes, waffles, French toast",
+   "parentId": "quick-breads-and-bread-products",
+   "position": 65
+  },
+  {
+   "id": "pasta-mixed-dishes-excludes-macaroni-and-cheese",
+   "name": "Pasta mixed dishes, excludes macaroni & cheese",
+   "parentId": "mixed-dishes-grain-based",
+   "position": 35
+  },
+  {
+   "id": "pasta-noodles-cooked-grains",
+   "name": "Pasta, noodles, cooked grains",
+   "parentId": "cooked-grains",
+   "position": 59
+  },
+  {
+   "id": "pasta-sauces-tomato-based",
+   "name": "Pasta sauces, tomato-based",
+   "parentId": "condiments-and-sauces",
+   "position": 148
+  },
+  {
+   "id": "peaches-and-nectarines",
+   "name": "Peaches and nectarines",
+   "parentId": "fruits",
+   "position": 88
+  },
+  {
+   "id": "peanut-butter-and-jelly-sandwiches",
+   "name": "Peanut butter and jelly sandwiches",
+   "parentId": "mixed-dishes-sandwiches",
+   "position": 50
+  },
+  {
+   "id": "pears",
+   "name": "Pears",
+   "parentId": "fruits",
+   "position": 95
+  },
+  {
+   "id": "pineapple",
+   "name": "Pineapple",
+   "parentId": "fruits",
+   "position": 96
+  },
+  {
+   "id": "pizza",
+   "name": "Pizza",
+   "parentId": "mixed-dishes-pizza",
+   "position": 44
+  },
+  {
+   "id": "plant-based-milk",
+   "name": "Plant-based milk",
+   "parentId": "plant-based-dairy",
+   "position": 8
+  },
+  {
+   "id": "plant-based-yogurt",
+   "name": "Plant-based yogurt",
+   "parentId": "plant-based-dairy",
+   "position": 9
+  },
+  {
+   "id": "popcorn",
+   "name": "Popcorn",
+   "parentId": "savory-snacks",
+   "position": 71
+  },
+  {
+   "id": "pork",
+   "name": "Pork",
+   "parentId": "meats",
+   "position": 12
+  },
+  {
+   "id": "potato-chips",
+   "name": "Potato chips",
+   "parentId": "savory-snacks",
+   "position": 69
+  },
+  {
+   "id": "poultry-mixed-dishes",
+   "name": "Poultry mixed dishes",
+   "parentId": "mixed-dishes-meat-poultry-seafood",
+   "position": 30
+  },
+  {
+   "id": "pretzels-snack-mix",
+   "name": "Pretzels/snack mix",
+   "parentId": "savory-snacks",
+   "position": 72
+  },
+  {
+   "id": "protein-and-nutritional-powders",
+   "name": "Protein and nutritional powders",
+   "parentId": "protein-and-nutritional-powders",
+   "position": 28
+  },
+  {
+   "id": "pudding",
+   "name": "Pudding",
+   "parentId": "other-desserts",
+   "position": 83
+  },
+  {
+   "id": "ramen-and-asian-broth-based-soups",
+   "name": "Ramen and Asian broth-based soups",
+   "parentId": "mixed-dishes-soups",
+   "position": 57
+  },
+  {
+   "id": "ready-to-eat-cereal",
+   "name": "Ready-to-eat cereal",
+   "parentId": "ready-to-eat-cereals",
+   "position": 66
+  },
+  {
+   "id": "rice",
+   "name": "Rice",
+   "parentId": "cooked-grains",
+   "position": 58
+  },
+  {
+   "id": "rice-mixed-dishes",
+   "name": "Rice mixed dishes",
+   "parentId": "mixed-dishes-grain-based",
+   "position": 34
+  },
+  {
+   "id": "rolls-and-buns",
+   "name": "Rolls and buns",
+   "parentId": "breads-rolls-tortillas",
+   "position": 61
+  },
+  {
+   "id": "salad-dressings-and-vegetable-oils",
+   "name": "Salad dressings and vegetable oils",
+   "parentId": "fats-and-oils",
+   "position": 143
+  },
+  {
+   "id": "saltine-crackers",
+   "name": "Saltine crackers",
+   "parentId": "crackers",
+   "position": 74
+  },
+  {
+   "id": "sausages",
+   "name": "Sausages",
+   "parentId": "cured-meats-poultry",
+   "position": 24
+  },
+  {
+   "id": "seafood-mixed-dishes",
+   "name": "Seafood mixed dishes",
+   "parentId": "mixed-dishes-meat-poultry-seafood",
+   "position": 31
+  },
+  {
+   "id": "seafood-sandwiches",
+   "name": "Seafood sandwiches",
+   "parentId": "mixed-dishes-sandwiches",
+   "position": 51
+  },
+  {
+   "id": "shellfish",
+   "name": "Shellfish",
+   "parentId": "seafood",
+   "position": 19
+  },
+  {
+   "id": "smoothies-and-grain-drinks",
+   "name": "Smoothies and grain drinks",
+   "parentId": "sweetened-beverages",
+   "position": 128
+  },
+  {
+   "id": "soft-drinks",
+   "name": "Soft drinks",
+   "parentId": "sweetened-beverages",
+   "position": 124
+  },
+  {
+   "id": "soups-broth-based",
+   "name": "Soups, broth-based",
+   "parentId": "mixed-dishes-soups",
+   "position": 55
+  },
+  {
+   "id": "soups-cream-based",
+   "name": "Soups, cream-based",
+   "parentId": "mixed-dishes-soups",
+   "position": 56
+  },
+  {
+   "id": "soy-and-meat-alternative-products",
+   "name": "Soy and meat-alternative products",
+   "parentId": "plant-based-protein-foods",
+   "position": 27
+  },
+  {
+   "id": "soy-based-condiments",
+   "name": "Soy-based condiments",
+   "parentId": "condiments-and-sauces",
+   "position": 145
+  },
+  {
+   "id": "spinach",
+   "name": "Spinach",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 102
+  },
+  {
+   "id": "sport-and-energy-drinks",
+   "name": "Sport and energy drinks",
+   "parentId": "sweetened-beverages",
+   "position": 126
+  },
+  {
+   "id": "stir-fry-and-soy-based-sauce-mixtures",
+   "name": "Stir-fry and soy-based sauce mixtures",
+   "parentId": "mixed-dishes-asian",
+   "position": 39
+  },
+  {
+   "id": "strawberries",
+   "name": "Strawberries",
+   "parentId": "fruits",
+   "position": 89
+  },
+  {
+   "id": "string-beans",
+   "name": "String beans",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 105
+  },
+  {
+   "id": "sugar-substitutes",
+   "name": "Sugar substitutes",
+   "parentId": "sugars",
+   "position": 151
+  },
+  {
+   "id": "sugars-and-honey",
+   "name": "Sugars and honey",
+   "parentId": "sugars",
+   "position": 150
+  },
+  {
+   "id": "tap-water",
+   "name": "Tap water",
+   "parentId": "plain-water",
+   "position": 134
+  },
+  {
+   "id": "tea",
+   "name": "Tea",
+   "parentId": "coffee-and-tea",
+   "position": 130
+  },
+  {
+   "id": "tomato-based-condiments",
+   "name": "Tomato-based condiments",
+   "parentId": "condiments-and-sauces",
+   "position": 144
+  },
+  {
+   "id": "tomatoes",
+   "name": "Tomatoes",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 98
+  },
+  {
+   "id": "tortilla-corn-other-chips",
+   "name": "Tortilla, corn, other chips",
+   "parentId": "savory-snacks",
+   "position": 70
+  },
+  {
+   "id": "tortillas",
+   "name": "Tortillas",
+   "parentId": "breads-rolls-tortillas",
+   "position": 63
+  },
+  {
+   "id": "turkey-duck-other-poultry",
+   "name": "Turkey, duck, other poultry",
+   "parentId": "poultry",
+   "position": 17
+  },
+  {
+   "id": "turnovers-and-other-grain-based-items",
+   "name": "Turnovers and other grain-based items",
+   "parentId": "mixed-dishes-grain-based",
+   "position": 37
+  },
+  {
+   "id": "vegetable-dishes",
+   "name": "Vegetable dishes",
+   "parentId": "mixed-dishes-bean-vegetable-based",
+   "position": 33
+  },
+  {
+   "id": "vegetable-juice",
+   "name": "Vegetable juice",
+   "parentId": "100-percent-juice",
+   "position": 120
+  },
+  {
+   "id": "vegetable-sandwiches-burgers",
+   "name": "Vegetable sandwiches/burgers",
+   "parentId": "mixed-dishes-sandwiches",
+   "position": 54
+  },
+  {
+   "id": "vegetables-on-a-sandwich",
+   "name": "Vegetables on a sandwich",
+   "parentId": "vegetables-excluding-potatoes",
+   "position": 113
+  },
+  {
+   "id": "white-potatoes-baked-or-boiled",
+   "name": "White potatoes, baked or boiled",
+   "parentId": "white-potatoes",
+   "position": 114
+  },
+  {
+   "id": "wine",
+   "name": "Wine",
+   "parentId": "alcoholic-beverages",
+   "position": 132
+  },
+  {
+   "id": "yeast-breads",
+   "name": "Yeast breads",
+   "parentId": "breads-rolls-tortillas",
+   "position": 60
+  },
+  {
+   "id": "yogurt-greek",
+   "name": "Yogurt, Greek",
+   "parentId": "yogurt",
+   "position": 7
+  },
+  {
+   "id": "yogurt-regular",
+   "name": "Yogurt, regular",
+   "parentId": "yogurt",
+   "position": 6
+  }
+ ]
+}

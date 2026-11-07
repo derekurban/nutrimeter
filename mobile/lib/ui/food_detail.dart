@@ -20,7 +20,7 @@ class PickResult {
 
 /// One food: choose an amount, see its nutrition against your targets, then confirm.
 class FoodDetailPage extends StatefulWidget {
-  const FoodDetailPage({super.key, required this.food, required this.actionLabel, this.meal, this.initialQuantity, this.initialUnit});
+  const FoodDetailPage({super.key, required this.food, required this.actionLabel, this.meal, this.initialQuantity, this.initialUnit, this.justAdded = false});
 
   final Food food;
   final String actionLabel;
@@ -29,6 +29,9 @@ class FoodDetailPage extends StatefulWidget {
   final Meal? meal;
   final double? initialQuantity;
   final String? initialUnit;
+
+  /// Reviewed on this phone a moment ago: says so above the name.
+  final bool justAdded;
 
   @override
   State<FoodDetailPage> createState() => _FoodDetailPageState();
@@ -67,6 +70,16 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     return Scaffold(
       appBar: AppBar(title: Text(_food.source.label, style: context.text.titleMedium)),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 120), children: [
+        if (widget.justAdded)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: context.du.accentSubtle, borderRadius: BorderRadius.circular(999)),
+              child: Text('New in your catalogue · reviewed by you just now', style: context.text.labelMedium?.copyWith(color: context.du.accentText)),
+            ),
+          ),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           FoodThumb(food: _food, size: 64),
           const SizedBox(width: 14),

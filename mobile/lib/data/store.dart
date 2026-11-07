@@ -11,7 +11,10 @@ import '../logic/foods.dart';
 import '../logic/targets.dart';
 import '../services/catalogue.dart';
 import '../services/cnf.dart';
+import '../services/reading_settings.dart';
+import '../services/taxonomy_asset.dart';
 import '../services/submissions.dart';
+import 'label_review.dart';
 import 'model.dart';
 
 /// All app state. Persisted as one JSON file in the app's private storage, written shortly after each change. The
@@ -50,6 +53,15 @@ class AppState extends ChangeNotifier implements FoodLibrary {
   /// Products captured on this device that have not reached the review queue yet. Not part of backups: their
   /// photos are files on this device.
   List<PendingSubmission> pendingSubmissions = [];
+
+  /// Products being read and reviewed on this phone, by id. Not part of backups: their photos are files on this device.
+  Map<String, LabelReview> labelReviews = {};
+
+  /// Which models read labels, the confidence bar, and what reading has cost. No secrets: keys are in the Keystore.
+  ReadingSettings readingSettings = const ReadingSettings();
+
+  /// The food taxonomy: the synced catalogue's (with pictures), else the copy bundled with the app.
+  Taxonomy get taxonomy => catalogue.taxonomy.categories.isNotEmpty ? catalogue.taxonomy : BundledTaxonomy.value;
 
   Timer? _saveTimer;
   Map<String, ResolvedTarget>? _resolved;
@@ -289,8 +301,31 @@ class AppState extends ChangeNotifier implements FoodLibrary {
   /// Replaces the catalogue with a fresh download.
   void setCatalogue(Catalogue c) {
     catalogue = _withProvisionalNames(c);
+    _pictureAcceptedProducts();
     _changed();
     _saveCatalogue();
+  }
+
+  /// A taxonomy fetched on its own (without an account): pictures and names, records untouched.
+  void setTaxonomy(Taxonomy t) {
+    if (t.categories.isEmpty) return;
+    catalogue = catalogue.withTaxonomy(t);
+    _pictureAcceptedProducts();
+    _changed();
+    _saveCatalogue();
+  }
+
+  /// Products accepted on this phone show their category's picture (else its subgroup's, else its group's) from the
+  /// taxonomy as it now stands, whether or not they are published yet.
+  void _pictureAcceptedProducts() {
+    final t = taxonomy;
+    for (final r in labelReviews.values) {
+      if (r.stage != ReviewStage.accepted || r.recordId == null) continue;
+      final f = savedFoods[r.recordId];
+      if (f == null) continue;
+      final url = t.imageUrl(r.categoryId);
+      if (url != f.imageUrl) savedFoods[f.id] = f.copyWith(imageUrl: () => url);
+    }
   }
 
   /// Writes the catalogue cache, one write at a time, encoded off the UI thread.
@@ -331,6 +366,47 @@ class AppState extends ChangeNotifier implements FoodLibrary {
     final dir = dataDir;
     if (dir == null) return;
     Directory('${dir.path}/submissions/$id').delete(recursive: true).then((_) {}, onError: (Object _) {});
+  }
+
+  /// Adds or replaces a review.
+  void putReview(LabelReview r) {
+    labelReviews = {...labelReviews, r.id: r};
+    _changed();
+  }
+
+  /// Forgets a review and deletes its photos from the device (unless [deletePhotos] is false, when a pending upload
+  /// takes them over). An accepted product stays in your foods.
+  void removeReview(String id, {bool deletePhotos = true}) {
+    labelReviews = {...labelReviews}..remove(id);
+    _changed();
+    final dir = dataDir;
+    if (dir == null || !deletePhotos) return;
+    Directory('${dir.path}/submissions/$id').delete(recursive: true).then((_) {}, onError: (Object _) {});
+  }
+
+  /// The review under way (not accepted) for a scanned barcode, if any.
+  LabelReview? openReviewForGtin(String gtin14) =>
+      labelReviews.values.where((r) => r.gtin == gtin14 && r.stage != ReviewStage.accepted).firstOrNull;
+
+  /// Reviews not finished yet, newest first.
+  List<LabelReview> get openReviews =>
+      labelReviews.values.where((r) => r.stage != ReviewStage.accepted).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  /// An accepted review's product, usable at once (and offline) until the catalogue brings the published record.
+  void acceptReview(LabelReview accepted, Food food) {
+    labelReviews = {...labelReviews, accepted.id: accepted};
+    savedFoods[food.id] = food;
+    _changed();
+  }
+
+  void setReadingSettings(ReadingSettings s) {
+    readingSettings = s;
+    _changed();
+  }
+
+  void addReadingSpend(double usd) {
+    readingSettings = readingSettings.copyWith(spentUsd: readingSettings.spentUsd + usd);
+    _changed();
   }
 
   void setTargets(Targets t) {
@@ -386,6 +462,8 @@ class AppState extends ChangeNotifier implements FoodLibrary {
         'targets': targets.toJson(),
         'recent': recent,
         if (!backup) 'pendingSubmissions': [for (final s in pendingSubmissions) s.toJson()],
+        if (!backup) 'labelReviews': [for (final r in labelReviews.values) r.toJson()],
+        'readingSettings': readingSettings.toJson(),
       };
 
   void _fromJson(Map<String, dynamic> j) {
@@ -400,7 +478,20 @@ class AppState extends ChangeNotifier implements FoodLibrary {
     if (j['catalogue'] is Map) catalogue = Catalogue.fromJson((j['catalogue'] as Map).cast<String, dynamic>());
     catalogue = _withProvisionalNames(catalogue);
     if (j['pendingSubmissions'] is List) pendingSubmissions = list('pendingSubmissions').map(PendingSubmission.fromJson).toList();
+    if (j['labelReviews'] is List) {
+      labelReviews = {for (final r in list('labelReviews').map(_tryReview).nonNulls) r.id: r};
+    }
+    if (j['readingSettings'] is Map) readingSettings = ReadingSettings.fromJson((j['readingSettings'] as Map).cast<String, dynamic>());
     _resolved = null;
+  }
+}
+
+LabelReview? _tryReview(Map<String, dynamic> j) {
+  try {
+    return LabelReview.fromJson(j);
+  } catch (e) {
+    debugPrint('Could not read a label review: $e');
+    return null;
   }
 }
 
