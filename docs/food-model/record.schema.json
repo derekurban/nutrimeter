@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nutrimeter.app/schemas/record-3.json",
+  "title": "Nutrimeter record, schema 3",
+  "description": "The data of a published record revision (record_revisions.data), whoever writes it. See record-schema.md. Rules JSON Schema cannot say (the default profile exists and has energy, unique ids and labels, a density where grams come from mL) are checked by record_problems in the database and by each writer's tests.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "name", "name_fr", "brand", "descriptor", "qualifiers", "barcodes", "package", "ingredients", "claims", "default_profile", "profiles", "source"],
+  "properties": {
+    "schema": { "const": 3 },
+    "name": { "$ref": "#/$defs/text" },
+    "name_fr": { "$ref": "#/$defs/textOrNull" },
+    "brand": { "$ref": "#/$defs/textOrNull" },
+    "descriptor": { "$ref": "#/$defs/textOrNull" },
+    "qualifiers": { "type": "array", "items": { "$ref": "#/$defs/text" } },
+    "barcodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["gtin", "raw", "symbology"],
+        "properties": {
+          "gtin": { "type": "string", "pattern": "^[0-9]{14}$" },
+          "raw": { "type": ["string", "null"], "pattern": "^[0-9]{6,14}$" },
+          "symbology": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "package": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text", "amount", "unit", "count"],
+          "properties": {
+            "text": { "$ref": "#/$defs/textOrNull" },
+            "amount": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+            "unit": { "enum": ["g", "ml", null] },
+            "count": { "type": ["integer", "null"], "minimum": 2 }
+          }
+        }
+      ]
+    },
+    "ingredients": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text", "language", "contains", "may_contain", "complete"],
+          "properties": {
+            "text": { "$ref": "#/$defs/text" },
+            "language": { "enum": ["en", "fr", "other"] },
+            "contains": { "$ref": "#/$defs/textOrNull" },
+            "may_contain": { "$ref": "#/$defs/textOrNull" },
+            "complete": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "claims": { "type": "array", "items": { "$ref": "#/$defs/text" } },
+    "default_profile": { "$ref": "#/$defs/profileId" },
+    "profiles": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "$ref": "#/$defs/profile" } },
+    "source": { "oneOf": [{ "$ref": "#/$defs/cnfSource" }, { "$ref": "#/$defs/labelSource" }] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "source": { "properties": { "kind": { "const": "cnf" } } } } },
+      "then": { "properties": { "profiles": { "items": { "properties": { "printed": { "type": "null" } } } } } },
+      "else": { "properties": { "profiles": { "items": { "properties": { "printed": { "type": "object" } } } } } }
+    }
+  ],
+  "$defs": {
+    "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "textOrNull": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/text" }] },
+    "profileId": { "enum": ["as-sold", "prepared", "drained"] },
+    "nutrientKey": {
+      "enum": ["energy", "caffeine", "carbs", "fiber", "starch", "sugars", "addedSugars", "fat", "satFat", "monoFat", "polyFat", "omega3", "omega6", "transFat", "cholesterol", "protein", "vitA", "vitB1", "vitB2", "vitB3", "vitB5", "vitB6", "vitB12", "biotin", "folate", "vitC", "vitD", "vitE", "vitK", "calcium", "copper", "iron", "magnesium", "manganese", "phosphorus", "potassium", "selenium", "sodium", "zinc"]
+    },
+    "count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amount", "unit"],
+      "properties": {
+        "amount": { "type": "number", "exclusiveMinimum": 0 },
+        "unit": { "$ref": "#/$defs/text" }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "per_100g", "portions", "density", "printed"],
+      "properties": {
+        "id": { "$ref": "#/$defs/profileId" },
+        "per_100g": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/nutrientKey" },
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        },
+        "portions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/portion" },
+          "contains": { "type": "object", "properties": { "serving": { "const": true } }, "required": ["serving"] },
+          "minContains": 0,
+          "maxContains": 1
+        },
+        "density": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["g_per_ml", "from"],
+              "properties": {
+                "g_per_ml": { "type": "number", "exclusiveMinimum": 0, "maximum": 3 },
+                "from": { "enum": ["label", "source", "typical"] }
+              }
+            }
+          ]
+        },
+        "printed": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/printed" }] }
+      }
+    },
+    "portion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "grams", "ml", "count", "grams_from", "serving"],
+      "properties": {
+        "label": { "allOf": [{ "$ref": "#/$defs/text" }, { "not": { "enum": ["g", "oz"] } }] },
+        "grams": { "type": "number", "exclusiveMinimum": 0 },
+        "ml": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "count": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/count" }] },
+        "grams_from": { "enum": ["label", "density", "package", "source"] },
+        "serving": { "type": "boolean" }
+      }
+    },
+    "printed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "languages", "heading", "serving", "rows"],
+      "properties": {
+        "format": { "enum": ["canadian-current", "canadian-older", "us", "eu", "other", null] },
+        "languages": { "type": "array", "items": { "type": "string", "minLength": 2 } },
+        "heading": { "$ref": "#/$defs/textOrNull" },
+        "serving": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text", "grams", "ml", "count"],
+          "properties": {
+            "text": { "$ref": "#/$defs/textOrNull" },
+            "grams": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+            "ml": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+            "count": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/count" }] }
+          }
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "amount", "unit", "percent_dv"],
+            "properties": {
+              "key": { "anyOf": [{ "$ref": "#/$defs/nutrientKey" }, { "const": "salt" }] },
+              "amount": { "type": ["number", "null"], "minimum": 0 },
+              "unit": { "enum": ["kcal", "kJ", "g", "mg", "µg", null] },
+              "percent_dv": { "type": ["number", "null"], "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "cnfSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "dataset", "code", "group", "attribution", "licence_url"],
+      "properties": {
+        "kind": { "const": "cnf" },
+        "dataset": { "$ref": "#/$defs/text" },
+        "code": { "type": "integer", "minimum": 1 },
+        "group": { "$ref": "#/$defs/textOrNull" },
+        "attribution": { "$ref": "#/$defs/text" },
+        "licence_url": { "type": "string", "pattern": "^https://" }
+      }
+    },
+    "labelSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "method", "review", "version", "extraction", "attempt", "readers", "name_from"],
+      "properties": {
+        "kind": { "const": "label" },
+        "method": { "enum": ["digitised", "phone", "desktop"] },
+        "review": { "enum": ["checks", "model", "person"] },
+        "version": { "$ref": "#/$defs/text" },
+        "extraction": { "type": ["string", "null"], "pattern": "^[0-9a-f-]{36}$" },
+        "attempt": { "type": ["integer", "null"], "minimum": 1 },
+        "readers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["step", "provider", "model"],
+            "properties": {
+              "step": { "$ref": "#/$defs/text" },
+              "provider": { "type": ["string", "null"] },
+              "model": { "$ref": "#/$defs/text" }
+            }
+          }
+        },
+        "name_from": { "enum": ["label", "hint", "descriptor"] }
+      }
+    }
+  }
+}

@@ -118,7 +118,7 @@ String _str(Object? v) => v is String ? v.trim() : '';
 /// "500 g", "1.89 L", "12 x 355 mL" → amount and unit (g or ml).
 ({double amount, String unit})? parseQuantity(String? text) {
   if (text == null) return null;
-  final m = RegExp(r'(?:(\d+(?:[.,]\d+)?)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|oz|fl\.? ?oz)\b', caseSensitive: false).firstMatch(text);
+  final m = _quantity.firstMatch(text);
   if (m == null) return null;
   double n(String s) => double.parse(s.replaceAll(',', '.'));
   final amount = n(m.group(2)!) * (m.group(1) == null ? 1 : n(m.group(1)!));
@@ -132,6 +132,15 @@ String _str(Object? v) => v is String ? v.trim() : '';
     _ => ('ml', 29.5735),
   };
   return (amount: amount * factor, unit: unit);
+}
+
+final _quantity = RegExp(r'(?:(\d+(?:[.,]\d+)?)\s*[x×]\s*)?(\d+(?:[.,]\d+)?)\s*(kg|g|ml|l|oz|fl\.? ?oz)\b', caseSensitive: false);
+
+/// The units in a multipack: "12 x 355 mL" → 12. Null for a single package.
+int? packageCount(String? text) {
+  final m = text == null ? null : _quantity.firstMatch(text);
+  final n = m?.group(1) == null ? null : double.tryParse(m!.group(1)!.replaceAll(',', '.'));
+  return n != null && n >= 2 && n == n.roundToDouble() ? n.toInt() : null;
 }
 
 /// An amount typed by a person, or a reading as printed: "3 g", "0,5mg", "90", "< 0.1 g". [unit] when none is given.
@@ -1164,8 +1173,8 @@ class RecordDraft {
   final List<String> problems;
 }
 
-/// The record a review publishes: the label as settled (schema 2, as the admin's digitised records), plus each
-/// profile's per-100 g values and gram portions, which the app reads.
+/// The record a review publishes, in record schema 3 (docs/food-model/record-schema.md and record.schema.json): the
+/// label as settled in `printed`, plus the profile's per-100 g values, gram portions and density, which the app reads.
 RecordDraft buildRecord(LabelReview r, List<ReviewLine> lines, {required List<StepRun> runs}) {
   final first = r.firstRead ?? const {};
   ReviewLine? line(String id) => lines.where((l) => l.id == id).firstOrNull;
@@ -1189,12 +1198,17 @@ RecordDraft buildRecord(LabelReview r, List<ReviewLine> lines, {required List<St
           ? verifiedServing
           : read;
 
-  // Per serving, from the nutrient lines as they stand.
-  final label = <Map<String, dynamic>>[];
+  // The rows as they stand, and per serving in the app's units. A row's %DV is the first read's: no one changes it.
+  final readRows = ((first['nutrients'] as List?) ?? const []).whereType<Map>().map((m) => m.cast<String, dynamic>()).toList();
+  final rows = <Map<String, dynamic>>[];
   final perServingValues = <String, double>{};
   for (final l in lines.where((l) => l.kind == 'nutrient')) {
     final key = l.id.substring(2);
-    label.add({'key': key, 'amount': l.amount, 'unit': l.unit, 'printed': l.value});
+    if (!readKeys.contains(key)) continue;
+    final dv = _percent(readRows.where((x) => x['key'] == key).firstOrNull?['dv']);
+    if (l.amount != null || dv != null) {
+      rows.add({'key': key, 'amount': l.amount, 'unit': l.amount != null && _rowUnits.contains(l.unit) ? l.unit : null, 'percent_dv': dv});
+    }
     final def = nutrientByKey[key == 'salt' ? 'sodium' : key];
     if (l.amount == null || def == null) continue;
     if (key == 'salt') {
@@ -1206,87 +1220,152 @@ RecordDraft buildRecord(LabelReview r, List<ReviewLine> lines, {required List<St
     if (c != null) perServingValues[key] = sig4(c);
   }
 
-  // The serving's grams: printed, else millilitres at a typical density, else a single-serve package.
-  final density = _density[cat] ?? 1.03;
-  var grams = s.grams;
-  var estimated = false;
-  if (grams == null && s.ml != null) {
-    grams = s.ml! * density;
-    estimated = true;
+  // The density: the serving's own when it prints grams and millilitres, else a typical one for the category.
+  final servingGrams = s.grams != null && s.grams! > 0 ? s.grams : null;
+  final servingMl = s.ml != null && s.ml! > 0 ? s.ml : null;
+  final labelDensity = servingGrams != null && servingMl != null ? sig4(servingGrams / servingMl) : null;
+  final printedDensity = labelDensity != null && labelDensity > 0 && labelDensity <= 3 ? labelDensity : null;
+  final typical = _density[cat] ?? 1.03;
+  final gPerMl = printedDensity ?? typical;
+
+  // The serving's grams: printed, else millilitres at the density, else a single-serve package.
+  double? grams = servingGrams;
+  var gramsFrom = 'label';
+  double? ml = servingMl;
+  if (grams == null && servingMl != null) {
+    grams = servingMl * gPerMl;
+    gramsFrom = 'density';
   }
-  if (grams == null && s.count == 1 && pkg != null && RegExp(r'^(can|bottle|package|pack|pouch|carton|bar|box|cup|container|tub|jar|bag)s?$').hasMatch(s.countUnit)) {
-    grams = pkg.unit == 'g' ? pkg.amount : pkg.amount * density;
-    estimated = pkg.unit != 'g';
+  if (grams == null && s.count == 1 && pkg != null && pkg.amount > 0 && RegExp(r'^(can|bottle|package|pack|pouch|carton|bar|box|cup|container|tub|jar|bag)s?$').hasMatch(s.countUnit)) {
+    grams = pkg.unit == 'g' ? pkg.amount : pkg.amount * gPerMl;
+    gramsFrom = pkg.unit == 'g' ? 'package' : 'density';
+    if (pkg.unit == 'ml') ml = pkg.amount;
   }
+  if (grams != null && _grams1(grams) <= 0) grams = null;
   final per100 = <String, double>{
-    if (grams != null && grams > 0)
+    if (grams != null)
       for (final e in perServingValues.entries) e.key: sig4(e.value * 100 / grams),
   };
 
+  // Portions: the serving, one of a counted serving, the package. Every one has grams; labels are unique.
   final portions = <Map<String, dynamic>>[];
   final seen = <String>{};
-  void add(String? label, double? g, double? ml, Map<String, dynamic>? count, bool est) {
-    if (label == null || label.isEmpty || !seen.add(label)) return;
-    portions.add({'label': label, 'count': count, 'grams': g == null ? null : (g * 10).round() / 10, 'ml': ml, 'grams_estimated': est});
+  var densityUsed = false;
+  bool add(String? label, double g, double? ml, Map<String, dynamic>? count, String from, {bool serving = false}) {
+    final l = label?.trim() ?? '';
+    if (l.isEmpty || _grams1(g) <= 0 || const {'g', 'oz'}.contains(l.toLowerCase()) || !seen.add(l)) return false;
+    if (from == 'density') densityUsed = true;
+    portions.add({'label': l, 'grams': _grams1(g), 'ml': ml != null && ml > 0 ? sig4(ml) : null, 'count': count, 'grams_from': from, 'serving': serving});
+    return true;
   }
 
-  final servingWords = servingLabel(s.text) ?? (s.count != null ? '${formatReading(s.count!, null)} ${s.countUnit}'.trim() : null) ?? (grams != null ? formatReading(grams, 'g') : null);
-  add(servingWords, grams, s.ml, s.count == null ? null : {'amount': s.count, 'unit': s.countUnit}, estimated);
-  if (s.count != null && s.count! > 1 && grams != null) {
-    add('1 ${s.countUnit}', grams / s.count!, s.ml == null ? null : s.ml! / s.count!, {'amount': 1, 'unit': s.countUnit}, estimated);
+  final servingCount = s.count != null && s.count! > 0 && s.countUnit.isNotEmpty ? {'amount': s.count, 'unit': s.countUnit} : null;
+  if (grams != null) {
+    final words = servingLabel(s.text) ?? (servingCount != null ? '${formatReading(s.count!, null)} ${s.countUnit}' : null);
+    if (!add(words, grams, ml, servingCount, gramsFrom, serving: true)) add(formatReading(grams, 'g'), grams, ml, servingCount, gramsFrom, serving: true);
+    if (servingCount != null && s.count! > 1) {
+      add('1 ${s.countUnit}', grams / s.count!, ml == null ? null : ml / s.count!, {'amount': 1, 'unit': s.countUnit}, gramsFrom);
+    }
+    if (pkg != null && pkg.amount > 0) {
+      add('1 package', pkg.unit == 'g' ? pkg.amount : pkg.amount * gPerMl, pkg.unit == 'ml' ? pkg.amount : null, {'amount': 1, 'unit': 'package'},
+          pkg.unit == 'g' ? 'package' : 'density');
+    }
   }
-  if (pkg != null && grams != null) {
-    final g = pkg.unit == 'g' ? pkg.amount : pkg.amount * density;
-    add('1 package', g, pkg.unit == 'ml' ? pkg.amount : null, {'amount': 1, 'unit': 'package'}, pkg.unit != 'g');
-  }
+  final density = printedDensity != null
+      ? {'g_per_ml': printedDensity, 'from': 'label'}
+      : densityUsed
+          ? {'g_per_ml': typical, 'from': 'typical'}
+          : null;
 
-  final profileId = _str(first['table']?['profile']).ifEmpty('as-sold');
+  final readProfile = _str(first['table']?['profile']);
+  final profileId = const {'as-sold', 'prepared', 'drained'}.contains(readProfile) ? readProfile : 'as-sold';
   final ingLine = line('ingredients');
   final ing = (first['ingredients'] as Map?)?.cast<String, dynamic>() ?? const {};
-  final ingText = ingLine == null || ingLine.hidden || ingLine.value == 'Not read' || ingLine.value == 'Not photographed' ? '' : ingLine.value;
+  final ingText = ingLine == null || ingLine.hidden || ingLine.value == 'Not read' || ingLine.value == 'Not photographed' ? '' : ingLine.value.trim();
+  final ingLanguage = _str(ing['language']);
+  final format = _str(first['table']?['format']);
+  final raw = r.rawBarcode != null && RegExp(r'^[0-9]{6,14}$').hasMatch(r.rawBarcode!) ? r.rawBarcode : null;
+  final recordName = name.nonEmpty ?? r.nameHint?.trim().nonEmpty;
 
   final readers = [
     for (final run in runs)
-      if (run.model != null && run.status == 'done') {'step': run.kind, 'provider': run.provider, 'model': run.model},
+      if ((run.model ?? '').trim().isNotEmpty && run.kind.trim().isNotEmpty && run.status == 'done') {'step': run.kind, 'provider': run.provider, 'model': run.model},
   ];
   final data = <String, dynamic>{
-    'schema': 2,
-    'name': name.nonEmpty ?? r.nameHint,
+    'schema': 3,
+    'name': recordName,
+    'name_fr': null,
     'brand': brand.nonEmpty,
-    'qualifiers': ((first['front']?['qualifiers'] as List?) ?? const []).cast<String>(),
-    'barcodes': [if (r.gtin != null) {'raw': r.rawBarcode, 'symbology': r.symbology, 'gtin': r.gtin}],
-    'package': {'text': pkgText.nonEmpty, 'amount': pkg?.amount, 'unit': pkg?.unit},
+    'descriptor': _str(first['front']?['descriptor']).nonEmpty,
+    'qualifiers': _texts(first['front']?['qualifiers']),
+    'barcodes': [if (r.gtin != null) {'gtin': r.gtin, 'raw': raw, 'symbology': r.symbology}],
+    'package': pkgText.isEmpty
+        ? null
+        : {
+            'text': pkgText,
+            'amount': pkg != null && pkg.amount > 0 ? pkg.amount : null,
+            'unit': pkg != null && pkg.amount > 0 ? pkg.unit : null,
+            'count': packageCount(pkgText),
+          },
     'ingredients': ingText.isEmpty
         ? null
-        : {'language': _str(ing['language']).ifEmpty('en'), 'text': ingText, 'contains': _str(ing['contains']).nonEmpty, 'may_contain': _str(ing['may_contain']).nonEmpty},
-    'label': {
-      'format': _str(first['table']?['format']).nonEmpty,
-      'languages': ((first['table']?['languages'] as List?) ?? const []).cast<String>(),
-      'claims': ((first['front']?['claims'] as List?) ?? const []).cast<String>(),
-    },
+        : {
+            'text': ingText,
+            'language': const {'en', 'fr', 'other'}.contains(ingLanguage) ? ingLanguage : 'en',
+            'contains': _str(ing['contains']).nonEmpty,
+            'may_contain': _str(ing['may_contain']).nonEmpty,
+            'complete': ing['complete'] is bool ? ing['complete'] as bool : true,
+          },
+    'claims': _texts(first['front']?['claims']),
     'default_profile': profileId,
     'profiles': [
       {
         'id': profileId,
-        'heading': _str(first['table']?['column_heading']).nonEmpty,
-        'serving': {'text': s.text, 'count': s.count == null ? null : {'amount': s.count, 'unit': s.countUnit}, 'grams': s.grams, 'ml': s.ml},
-        'nutrients': perServingValues,
-        'label': label,
-        'serving_grams': grams == null ? null : (grams * 10).round() / 10,
         'per_100g': per100,
-        'per_100g_basis': grams == null ? null : estimated ? 'ml-estimated' : 'label',
         'portions': portions,
+        'density': density,
+        'printed': {
+          'format': _formats.contains(format) ? format : null,
+          'languages': [for (final l in _texts(first['table']?['languages'])) if (l.length >= 2) l],
+          'heading': _str(first['table']?['column_heading']).nonEmpty,
+          'serving': {'text': s.text.trim().nonEmpty, 'grams': servingGrams, 'ml': servingMl, 'count': servingCount},
+          'rows': rows,
+        },
       },
     ],
-    'source': {'kind': 'device-review', 'version': readingVersion, 'readers': readers},
+    'source': {
+      'kind': 'label',
+      'method': 'phone',
+      'review': 'person',
+      'version': readingVersion,
+      'extraction': null,
+      'attempt': null,
+      'readers': readers,
+      // The name line shows the hint when nothing was read and no one changed it.
+      'name_from': _str(first['front']?['name']).isEmpty && recordName != null && recordName == r.nameHint?.trim() ? 'hint' : 'label',
+    },
   };
 
   final problems = <String>[
-    if ((data['name'] as String?)?.trim().isEmpty ?? true) 'It needs a name.',
+    if (recordName == null) 'It needs a name.',
     if (perServingValues['energy'] == null) 'It needs the calories.',
     if (grams == null) 'The serving needs grams or millilitres.',
   ];
-  return RecordDraft(recordId: recordIdFor(r, name.nonEmpty ?? r.nameHint ?? '', brand), categoryId: cat, data: data, problems: problems);
+  return RecordDraft(recordId: recordIdFor(r, recordName ?? '', brand), categoryId: cat, data: data, problems: problems);
+}
+
+const _rowUnits = {'kcal', 'kJ', 'g', 'mg', 'µg'};
+const _formats = {'canadian-current', 'canadian-older', 'us', 'eu', 'other'};
+
+double _grams1(double g) => (g * 10).round() / 10;
+
+/// The strings of a list that are not blank, trimmed.
+List<String> _texts(Object? v) => [for (final x in (v is List ? v : const [])) if (x is String && x.trim().isNotEmpty) x.trim()];
+
+/// "11 %" → 11. Null when no %DV is printed.
+double? _percent(Object? dv) {
+  final m = RegExp(r'\d+(?:[.,]\d+)?').firstMatch(_str(dv));
+  return m == null ? null : double.parse(m.group(0)!.replaceAll(',', '.'));
 }
 
 /// What the person changed, for the review's `edits`: line id → from and to.
