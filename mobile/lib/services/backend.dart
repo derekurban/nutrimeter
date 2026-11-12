@@ -1,5 +1,5 @@
 // The food review backend (Supabase), from the app's side: signing in as the one user, syncing the published
-// catalogue into the app's data file, and sending captured products to the review queue. Everything here is optional:
+// catalogue into the app's data file, and publishing the products reviewed on this phone. Everything here is optional:
 // without a session (or a connection) the app keeps working from its own data.
 import 'dart:async';
 import 'dart:io';
@@ -47,8 +47,6 @@ class Backend {
 
   static DateTime? _synced;
   static Future<void>? _download;
-  static bool _uploading = false;
-  static bool _again = false;
   static bool _publishing = false;
 
   /// Signed in, so the catalogue can be downloaded.
@@ -92,14 +90,13 @@ class Backend {
     }
   }
 
-  /// On launch, on coming back to the front and after signing in: sends anything waiting to upload, and downloads the
+  /// On launch, on coming back to the front and after signing in: publishes accepted label reviews, and downloads the
   /// catalogue when it is [due]. A call during a download waits for that download instead of starting another. Never
   /// throws: a failure is in [syncError].
   static Future<void> sync(AppState state, {bool force = false}) {
     final c = _client;
     if (c == null) return Future.value();
     if (c.auth.currentUser == null) return syncTaxonomy(state, force: force);
-    unawaited(uploadPending(state));
     unawaited(publishReviews(state));
     final running = _download;
     if (running != null) return running;
@@ -129,38 +126,8 @@ class Backend {
     }
   }
 
-  /// Uploads every pending submission, one at a time, saving progress after each step. Failures stay pending (with
-  /// their reason) and are retried on the next sync.
-  static Future<void> uploadPending(AppState state) async {
-    final c = _client;
-    final dir = state.dataDir;
-    if (c == null || c.auth.currentUser == null || dir == null) return;
-    if (_uploading) {
-      _again = true;
-      return;
-    }
-    _uploading = true;
-    try {
-      do {
-        _again = false;
-        for (final pending in [...state.pendingSubmissions]) {
-          try {
-            await uploadSubmission(c, pending.copyWith(error: () => null), dataDir: dir, onProgress: state.updateSubmission);
-            state.removeSubmission(pending.id);
-          } catch (e) {
-            final current = state.pendingSubmissions.where((s) => s.id == pending.id).firstOrNull;
-            if (current != null) state.updateSubmission(current.copyWith(error: () => describeError(e)));
-            if (_offline(e)) return;
-          }
-        }
-      } while (_again);
-    } finally {
-      _uploading = false;
-    }
-  }
-
-  /// Publishes every review accepted on this phone and not published yet: its submission and photos (never queued
-  /// for the desktop), then `publish_device_review`, which records the readings, the person's review, the revision and
+  /// Publishes every review accepted on this phone and not published yet: its submission and photos, then
+  /// `publish_device_review`, which records the readings, the person's review, the revision and
   /// the alias in one transaction. Failures stay on the review (with their reason) and are retried on the next sync.
   static Future<void> publishReviews(AppState state) async {
     final c = _client;
@@ -172,7 +139,7 @@ class Backend {
         var review = r;
         try {
           if (!review.uploaded) {
-            final sent = await uploadSubmission(c, review.submission, dataDir: dir, queue: false, onProgress: (s) {
+            final sent = await uploadSubmission(c, review.submission, dataDir: dir, onProgress: (s) {
               final now = state.labelReviews[review.id];
               if (now != null) state.putReview(now.copyWith(photos: s.photos));
             });
