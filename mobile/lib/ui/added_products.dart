@@ -10,6 +10,7 @@ import '../data/store.dart';
 import '../logic/label_reading.dart';
 import '../services/backend.dart';
 import '../services/label_pipeline.dart';
+import '../services/reading_settings.dart';
 import 'reading_settings_page.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -19,7 +20,8 @@ import 'widgets.dart';
   final bar = state.readingSettings.bar;
   switch (r.stage) {
     case ReviewStage.photos:
-      return (text: 'Photos started', needsYou: true);
+      if (r.photos.isEmpty) return (text: 'Photos started', needsYou: true);
+      return (text: ApiKeys.present.isEmpty ? 'Photos taken · add an API key to read it' : 'Photos taken · ready to read', needsYou: true);
     case ReviewStage.reading:
       return (text: 'Being read…', needsYou: false);
     case ReviewStage.rechecking:

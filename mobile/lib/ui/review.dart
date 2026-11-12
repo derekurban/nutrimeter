@@ -1,10 +1,9 @@
-// Food review from the app's side: the Settings card to sign in and sync the catalogue, and the list of products sent
-// for review (and those still waiting on the phone).
-import 'dart:async';
-
+// Food review from the app's side: the Settings card to sign in (which publishes the products reviewed on this phone
+// and syncs the catalogue), and the history of submissions sent from this account with their status.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../data/label_review.dart';
 import '../data/store.dart';
 import '../services/backend.dart';
 import '../services/backend_config.dart';
@@ -94,13 +93,13 @@ class _SignInState extends State<_SignIn> {
 
   @override
   Widget build(BuildContext context) {
-    final pending = AppScope.of(context).pendingSubmissions.length;
+    final waiting = _unpublished(AppScope.of(context));
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(
-            'Sign in to get reviewed products on this phone and to send new ones for review. '
+            'Sign in to get the reviewed catalogue on this phone and to publish the products you add from their labels. '
             'Everything else works without an account.',
             style: TextStyle(color: context.muted),
           ),
@@ -110,10 +109,10 @@ class _SignInState extends State<_SignIn> {
               child: Text('This build uses the ${Backend.config.name} backend, which has its own accounts.',
                   style: TextStyle(color: context.muted)),
             ),
-          if (pending > 0)
+          if (waiting > 0)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text('$pending ${pending == 1 ? 'product is' : 'products are'} waiting on this phone to be sent.',
+              child: Text('$waiting ${waiting == 1 ? 'product you added is' : 'products you added are'} in your foods, waiting to be published.',
                   style: TextStyle(color: context.du.warning)),
             ),
           const SizedBox(height: 12),
@@ -152,7 +151,6 @@ class _SignedIn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
-    final pending = state.pendingSubmissions.length;
     final synced = state.catalogue.syncedAt;
     final count = state.catalogue.records.length;
     return Card(
@@ -177,7 +175,7 @@ class _SignedIn extends StatelessWidget {
         ListTile(
           leading: const Icon(LucideIcons.inbox),
           title: const Text('Submissions'),
-          subtitle: Text(pending == 0 ? 'Products you sent for review' : '$pending waiting to upload'),
+          subtitle: const Text('What was sent from this account, with its status'),
           trailing: const Icon(LucideIcons.chevronRight),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SubmissionsPage())),
         ),
@@ -210,7 +208,11 @@ class _SignedIn extends StatelessWidget {
   }
 }
 
-/// Products you sent for review, newest first, with their status; those still on the phone come first.
+/// Accepted label reviews not published yet (they publish on the next sync while signed in).
+int _unpublished(AppState state) => state.labelReviews.values.where((r) => r.stage == ReviewStage.accepted && !r.published).length;
+
+/// The history of what was sent from this account, newest first, with its status: products published from the phone's
+/// label review, and those sent to the retired desktop review queue (closed if they were still waiting in it).
 class SubmissionsPage extends StatefulWidget {
   const SubmissionsPage({super.key});
 
@@ -246,98 +248,46 @@ class _SubmissionsPageState extends State<SubmissionsPage> {
     }
   }
 
-  Future<void> _retry() async {
-    final state = AppScope.read(context);
-    await Backend.uploadPending(state);
-    await _load();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final state = AppScope.of(context);
-    final local = [...state.pendingSubmissions]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    final localIds = {for (final s in local) s.id};
-    final remote = (_remote ?? const <SubmissionView>[]).where((s) => !localIds.contains(s.id)).toList();
+    final remote = _remote ?? const <SubmissionView>[];
     final signedIn = Backend.account.value != null;
     return Scaffold(
       appBar: AppBar(title: const Text('Submissions')),
       body: RefreshIndicator(
-        onRefresh: signedIn ? _retry : () async {},
+        onRefresh: signedIn ? _load : () async {},
         child: ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 40), children: [
           if (_loading && _remote == null) const LinearProgressIndicator(),
           if (!signedIn)
             Padding(
               padding: const EdgeInsets.all(8),
-              child: Text('Sign in under Targets → Food review to send these for review and see their status.',
-                  style: TextStyle(color: context.muted)),
+              child: Text('Sign in under Targets → Food review to see what was sent and its status.', style: TextStyle(color: context.muted)),
             ),
           if (_error != null) Padding(padding: const EdgeInsets.all(8), child: Text(_error!, style: TextStyle(color: context.du.danger))),
-          if (local.isNotEmpty) ...[
-            const SectionTitle('On this phone'),
-            Card(
-              clipBehavior: Clip.antiAlias,
-              child: Column(children: [for (final s in local) _LocalTile(submission: s, signedIn: signedIn, onRetry: _retry)]),
-            ),
-          ],
           if (remote.isNotEmpty) ...[
-            const SectionTitle('Sent for review'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+              child: Text(
+                'Products now reach the catalogue from your label review on this phone. The desktop review queue is retired: '
+                'what was still waiting in it is closed.',
+                style: TextStyle(color: context.muted, fontSize: 13),
+              ),
+            ),
             Card(
               clipBehavior: Clip.antiAlias,
               child: Column(children: [for (final s in remote) _RemoteTile(submission: s)]),
             ),
           ],
-          if (local.isEmpty && remote.isEmpty && !_loading)
+          if (signedIn && remote.isEmpty && !_loading && _error == null)
             Padding(
               padding: const EdgeInsets.all(32),
               child: Text(
-                'Nothing yet. When a scan or search finds nothing, add the product from photos and it shows up here.',
+                'Nothing yet. When a scan or search finds nothing, add the product from its label and it shows up here once it is sent.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: context.muted),
               ),
             ),
         ]),
-      ),
-    );
-  }
-}
-
-class _LocalTile extends StatelessWidget {
-  const _LocalTile({required this.submission, required this.signedIn, required this.onRetry});
-
-  final PendingSubmission submission;
-  final bool signedIn;
-  final Future<void> Function() onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = submission;
-    final state = AppScope.of(context);
-    final name = s.nameHint ?? state.resolve(s.provisionalId)?.name ?? 'New product';
-    final status = !signedIn
-        ? 'Waiting · sign in to send'
-        : s.error != null
-            ? 'Not sent yet: ${s.error}'
-            : 'Uploading ${s.photos.where((p) => p.uploaded).length} of ${s.photos.length} photos';
-    return ListTile(
-      leading: const Icon(LucideIcons.smartphone),
-      title: Text([name, ?s.brandHint].join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text('$status\n${[if (s.rawBarcode != null) s.rawBarcode!, _ago(s.createdAt)].join(' · ')}'),
-      isThreeLine: true,
-      trailing: PopupMenuButton<String>(
-        icon: const Icon(LucideIcons.ellipsisVertical),
-        onSelected: (a) async {
-          if (a == 'retry') {
-            unawaited(onRetry());
-          } else if (await confirmDialog(context, 'Discard this product?',
-              'Its photos are deleted from this phone and it is not sent for review. The food stays in your diary.',
-              action: 'Discard')) {
-            state.removeSubmission(s.id);
-          }
-        },
-        itemBuilder: (_) => [
-          if (signedIn) const PopupMenuItem(value: 'retry', child: Text('Retry now')),
-          const PopupMenuItem(value: 'discard', child: Text('Discard')),
-        ],
       ),
     );
   }
@@ -365,6 +315,7 @@ class _RemoteTile extends StatelessWidget {
       leading: Icon(switch (s.status) {
         'accepted' => LucideIcons.circleCheck,
         'rejected' => LucideIcons.circleX,
+        'closed' => LucideIcons.circleMinus,
         'claimed' || 'drafted' => LucideIcons.eye,
         _ => LucideIcons.clock,
       }, color: colour),

@@ -67,10 +67,10 @@ void main() {
     expect(find.text('Ingredients'), findsOneWidget);
     expect(find.text('Optional, worth it'), findsOneWidget);
     expect(state.labelReviews.values.single.nameHint, 'zzqx crackers');
-    // Without a key, the way forward is to add one; the desktop queue needs the two photos first.
+    // Without a key the only way forward is to add one: the label is read nowhere else.
     expect(find.text('Add an API key to read it here'), findsOneWidget);
-    final desk = tester.widget<TextButton>(find.widgetWithText(TextButton, 'Send it to the desktop review instead'));
-    expect(desk.onPressed, isNull);
+    expect(find.text('Read the label'), findsNothing);
+    expect(find.textContaining('desktop'), findsNothing);
 
     // Leaving with no photos forgets it.
     await tester.tap(find.byTooltip('Back'));

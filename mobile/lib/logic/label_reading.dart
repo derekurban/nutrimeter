@@ -350,6 +350,7 @@ String firstReadText(LabelReview r, List<({String id, String path})> categories)
   return [
     if (r.gtin != null) 'Barcode scanned: ${r.rawBarcode}.' else 'No barcode: this was added by name.',
     if (r.nameHint != null) 'Name hint from the person (may be wrong): "${r.nameHint}".',
+    if (r.brandHint != null) 'Brand hint from the person (may be wrong): "${r.brandHint}".',
     if (r.note != null) 'Note from the person: ${r.note}',
     '',
     'Photos, attached in this order:',

@@ -13,7 +13,6 @@ import '../data/model.dart';
 import '../data/store.dart';
 import '../logic/barcode.dart';
 import '../logic/label_reading.dart';
-import '../services/backend.dart';
 import '../services/label_pipeline.dart';
 import '../services/llm.dart';
 import '../services/reading_settings.dart';
@@ -25,7 +24,8 @@ import 'theme.dart';
 import 'widgets.dart';
 
 /// Opens the flow for a new product ([barcode] or [nameHint]) or for a review already under way ([reviewId]).
-/// Returns the accepted product (or, sent to the desktop instead, its provisional food); null if left.
+/// Returns the accepted product; null if left. Reading needs the person's API key: without one, the way forward is
+/// to add one ([requireReadingKey]).
 Future<Food?> openProductFlow(BuildContext context, {Gtin? barcode, String? nameHint, String? reviewId}) => Navigator.of(context)
     .push<Food>(MaterialPageRoute(builder: (_) => ProductFlowPage(barcode: barcode, nameHint: nameHint, reviewId: reviewId)));
 
@@ -108,7 +108,13 @@ class _ProductFlowPageState extends State<ProductFlowPage> {
     }
   }
 
-  void _read() {
+  Future<void> _read() async {
+    // Reading needs a key; without one, the prompt to add one.
+    if (!await requireReadingKey(context) || !mounted) return;
+    _startReading();
+  }
+
+  void _startReading() {
     final state = AppScope.read(context);
     final r = state.labelReviews[_id];
     if (r == null) return;
@@ -117,8 +123,10 @@ class _ProductFlowPageState extends State<ProductFlowPage> {
     unawaited(LabelPipeline.run(state, r.id));
   }
 
-  /// A retaken photo starts the reading over.
+  /// A retaken photo starts the reading over. The key is asked for first, so a photo is never replaced (and the
+  /// reads cleared) for a reading that cannot run.
   Future<void> _retake(String role) async {
+    if (!await requireReadingKey(context) || !mounted) return;
     final pr = PhotoRole.values.where((p) => p.name == role).firstOrNull ?? PhotoRole.nutrition;
     if (!await _photo(pr, ImageSource.camera) || !mounted) return;
     final state = AppScope.read(context);
@@ -133,11 +141,12 @@ class _ProductFlowPageState extends State<ProductFlowPage> {
       finding: () => null,
       findingRole: () => null,
     ));
-    _read();
+    _startReading();
   }
 
   /// Reads the whole label again from the same photos.
-  void _reread() {
+  Future<void> _reread() async {
+    if (!await requireReadingKey(context) || !mounted) return;
     final state = AppScope.read(context);
     final r = state.labelReviews[_id];
     if (r == null) return;
@@ -151,37 +160,28 @@ class _ProductFlowPageState extends State<ProductFlowPage> {
       finding: () => null,
       findingRole: () => null,
     ));
-    _read();
+    _startReading();
   }
 
-  void _carryOn() {
+  Future<void> _carryOn() async {
+    if (!await requireReadingKey(context) || !mounted) return;
     final state = AppScope.read(context);
-    final r = state.labelReviews[_id]!;
+    final r = state.labelReviews[_id];
+    if (r == null) return;
     state.putReview(r.copyWith(carriedOn: true, finding: () => null));
     setState(() => _watched = true);
     unawaited(LabelPipeline.run(state, r.id));
   }
 
-  /// The old way, for a phone without a key: the photos go to the desktop's review queue, and the product is logged by
-  /// weight meanwhile.
-  Future<void> _sendToDesktop() async {
+  /// Runs again what stopped: the notes' re-read if that is what stopped, else the reading from where it stands.
+  Future<void> _retry() async {
+    if (!await requireReadingKey(context) || !mounted) return;
     final state = AppScope.read(context);
     final r = state.labelReviews[_id];
     if (r == null) return;
-    final food = Food(
-      id: r.provisionalId,
-      source: FoodSource.provisional,
-      name: r.nameHint ?? 'New product',
-      barcode: r.gtin,
-      nutrients: const {},
-    );
-    state.addSubmission(r.submission, food);
-    state.removeReview(r.id, deletePhotos: false);
-    await state.save();
-    unawaited(Backend.uploadPending(state));
-    if (!mounted) return;
-    showToast(context, Backend.account.value != null ? 'Sent for review on the desktop.' : 'Kept on this phone. Sign in under Targets → Food review to send it.');
-    Navigator.of(context).pop(food);
+    setState(() => _watched = true);
+    final run = r.pendingNotes.isNotEmpty && r.firstRead != null && r.secondRead != null ? LabelPipeline.recheck : LabelPipeline.run;
+    unawaited(run(state, r.id));
   }
 
   @override
@@ -192,18 +192,14 @@ class _ProductFlowPageState extends State<ProductFlowPage> {
       return _NewFind(barcode: widget.barcode, nameHint: widget.nameHint, onAdd: _start);
     }
     return switch (r.stage) {
-      ReviewStage.photos => _Capture(review: r, onPhoto: _photo, onRead: _read, onDesktop: _sendToDesktop),
+      ReviewStage.photos => _Capture(review: r, onPhoto: _photo, onRead: _read),
       ReviewStage.review when !_watched => LabelReviewScreen(review: r, onRetake: _retake, onReread: _reread),
       ReviewStage.accepted => _Accepted(review: r),
       _ => _Reading(
           review: r,
           onRetake: _retake,
           onCarryOn: _carryOn,
-          onRetry: () {
-            setState(() => _watched = true);
-            final run = r.pendingNotes.isNotEmpty && r.firstRead != null && r.secondRead != null ? LabelPipeline.recheck : LabelPipeline.run;
-            unawaited(run(state, r.id));
-          },
+          onRetry: _retry,
           onReview: () => setState(() => _watched = false),
         ),
     };
@@ -311,12 +307,11 @@ class _Bar extends StatelessWidget {
 // ── Photos ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 class _Capture extends StatefulWidget {
-  const _Capture({required this.review, required this.onPhoto, required this.onRead, required this.onDesktop});
+  const _Capture({required this.review, required this.onPhoto, required this.onRead});
 
   final LabelReview review;
   final Future<bool> Function(PhotoRole, ImageSource) onPhoto;
   final VoidCallback onRead;
-  final VoidCallback onDesktop;
 
   @override
   State<_Capture> createState() => _CaptureState();
@@ -395,19 +390,11 @@ class _CaptureState extends State<_Capture> {
         ]),
         bottomNavigationBar: ValueListenableBuilder(
           valueListenable: ApiKeys.keys,
+          // Without a key the only way forward is to add one: the label is read nowhere else.
           builder: (context, keys, _) => _Bar(children: [
-            if (keys.isEmpty) ...[
-              Expanded(
-                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  FilledButton.icon(
-                    icon: const Icon(LucideIcons.keyRound, size: 18),
-                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReadingSettingsPage())),
-                    label: const Text('Add an API key to read it here'),
-                  ),
-                  TextButton(onPressed: ready ? widget.onDesktop : null, child: const Text('Send it to the desktop review instead')),
-                ]),
-              ),
-            ] else
+            if (keys.isEmpty)
+              const Expanded(child: AddKeyButton())
+            else
               Expanded(
                 child: FilledButton(
                   onPressed: ready
@@ -562,7 +549,7 @@ class _Reading extends StatelessWidget {
             title: 'Stopped',
             body: r.error ?? 'A step did not finish.',
             actions: [
-              if ((r.error ?? '').contains('key'))
+              if ((r.error ?? '').contains('key') && ApiKeys.present.isNotEmpty)
                 OutlinedButton(
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReadingSettingsPage())),
                   child: const Text('Label reading settings'),

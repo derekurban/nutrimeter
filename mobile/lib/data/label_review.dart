@@ -131,6 +131,7 @@ class LabelReview {
     this.symbology,
     this.gtin,
     this.nameHint,
+    this.brandHint,
     this.note,
     this.photos = const [],
     this.stage = ReviewStage.photos,
@@ -163,6 +164,9 @@ class LabelReview {
   final String? symbology;
   final String? gtin;
   final String? nameHint;
+
+  /// The brand typed when an older version captured the product (the label review itself asks for none).
+  final String? brandHint;
 
   /// Anything the person told the reader before it read.
   final String? note;
@@ -250,6 +254,7 @@ class LabelReview {
         symbology: symbology,
         gtin: gtin,
         nameHint: nameHint,
+        brandHint: brandHint,
         note: note != null ? note() : this.note,
         photos: photos ?? this.photos,
         stage: stage ?? this.stage,
@@ -273,7 +278,7 @@ class LabelReview {
         publishError: publishError != null ? publishError() : this.publishError,
       );
 
-  /// The submission row the backend gets (as for a desktop review, but never queued).
+  /// The submission row the backend gets, with its photos; `publish_device_review` then publishes from it.
   PendingSubmission get submission => PendingSubmission(
         id: id,
         provisionalId: provisionalId,
@@ -281,6 +286,7 @@ class LabelReview {
         symbology: symbology,
         gtin: gtin,
         nameHint: nameHint,
+        brandHint: brandHint,
         note: note,
         photos: photos,
         createdAt: createdAt,
@@ -293,6 +299,7 @@ class LabelReview {
         'symbology': ?symbology,
         'gtin': ?gtin,
         'nameHint': ?nameHint,
+        'brandHint': ?brandHint,
         'note': ?note,
         'photos': [for (final p in photos) p.toJson()],
         'stage': stage.name,
@@ -330,6 +337,7 @@ class LabelReview {
       symbology: j['symbology'] as String?,
       gtin: j['gtin'] as String?,
       nameHint: j['nameHint'] as String?,
+      brandHint: j['brandHint'] as String?,
       note: j['note'] as String?,
       photos: [for (final p in (j['photos'] as List? ?? const [])) PendingPhoto.fromJson((p as Map).cast<String, dynamic>())],
       stage: stage,
@@ -355,6 +363,26 @@ class LabelReview {
       publishError: j['publishError'] as String?,
     );
   }
+}
+
+/// A product an older version kept on the phone for the desktop review queue (`pendingSubmissions` in the data file),
+/// which is retired: it becomes a label review at the photos stage, to be read with the person's key. It keeps its id
+/// (so its photo folder, and the submission row if one was created), its photos (with what was uploaded), the barcode,
+/// the hints and note, the provisional food id the diary logs against, and when it was captured.
+LabelReview reviewFromOldSubmission(Map<String, dynamic> j) {
+  String? text(String k) => (j[k] as String?)?.nonEmpty;
+  return LabelReview(
+    id: j['id'] as String,
+    provisionalId: j['provisionalId'] as String,
+    rawBarcode: text('rawBarcode'),
+    symbology: text('symbology'),
+    gtin: text('gtin'),
+    nameHint: text('nameHint'),
+    brandHint: text('brandHint'),
+    note: text('note'),
+    photos: [for (final p in (j['photos'] as List? ?? const [])) PendingPhoto.fromJson((p as Map).cast<String, dynamic>())],
+    createdAt: DateTime.parse(j['createdAt'] as String),
+  );
 }
 
 extension NonEmpty on String {

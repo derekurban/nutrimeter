@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nutrimeter/data/label_review.dart';
 import 'package:nutrimeter/data/model.dart';
 import 'package:nutrimeter/data/store.dart';
 import 'package:nutrimeter/logic/foods.dart';
@@ -421,7 +422,7 @@ void main() {
     test('a record published without a name keeps the name given at capture', () {
       final state = AppState.memory();
       const provisional = Food(id: pendingId, source: FoodSource.provisional, name: 'Farm eggs', nutrients: {});
-      state.addSubmission(PendingSubmission(id: pendingId.substring(8), provisionalId: pendingId, createdAt: DateTime(2026)), provisional);
+      state.cacheFood(provisional);
       state.setCatalogue(Catalogue(
         records: [CatalogueRecord(id: eggsId, role: 'product', data: {...eggs()}..remove('name'))],
         aliases: const {pendingId: eggsId},
@@ -444,7 +445,7 @@ void main() {
     test('an entry logged against a pending id shows the published food once synced', () {
       final state = AppState.memory();
       const provisional = Food(id: pendingId, source: FoodSource.provisional, name: 'New product', nutrients: {});
-      state.addSubmission(PendingSubmission(id: pendingId.substring(8), provisionalId: pendingId, createdAt: DateTime(2026)), provisional);
+      state.cacheFood(provisional);
       final entry = state.log(date: '2026-10-23', meal: Meal.breakfast, food: provisional, quantity: 106, unit: 'g');
       expect(state.resolve(pendingId)!.name, 'New product');
       expect(totalNutrients(state, [entry])['energy'], isNull);
@@ -459,7 +460,7 @@ void main() {
     test('a provisional barcode food fills in under the same id', () {
       final state = AppState.memory();
       const provisional = Food(id: 'gtin:00096619845774', source: FoodSource.provisional, name: 'Eggs', barcode: '00096619845774', nutrients: {});
-      state.addSubmission(PendingSubmission(id: 'sub', provisionalId: provisional.id, createdAt: DateTime(2026)), provisional);
+      state.cacheFood(provisional);
       expect(state.findByGtin('00096619845774')!.source, FoodSource.provisional);
       state.setCatalogue(sample());
       expect(state.findByGtin('00096619845774')!.source, FoodSource.catalogue);
@@ -500,7 +501,7 @@ void main() {
     });
   });
 
-  group('pending uploads', () {
+  group('products waiting for the retired desktop queue', () {
     PendingSubmission submission() => PendingSubmission(
           id: '6a1f0c7e-1d2b-4e3f-8a9b-0c1d2e3f4a5b',
           provisionalId: 'gtin:00067000008290',
@@ -509,49 +510,101 @@ void main() {
           gtin: '00067000008290',
           nameHint: 'Coca-Cola',
           brandHint: 'Coca-Cola',
-          photos: [
-            PendingPhoto(role: PhotoRole.front, file: 'submissions/x/${'a' * 64}.jpg', sha256: 'a' * 64, contentType: 'image/jpeg', width: 1536, height: 2048, bytes: 412000, uploaded: true),
-            PendingPhoto(role: PhotoRole.nutrition, file: 'submissions/x/${'b' * 64}.png', sha256: 'b' * 64, contentType: 'image/png', bytes: 380000),
-          ],
-          created: true,
           createdAt: DateTime(2026, 10, 23, 9, 30),
-          error: 'Offline',
         );
 
-    test('survive a restart in the data file, but stay out of backups', () async {
+    // The data file as 0.4.0 wrote it: a product kept for the desktop queue, half uploaded, with its provisional food.
+    Map<String, dynamic> oldDataFile() => {
+          'app': 'nutrimeter',
+          'schema': 1,
+          'savedFoods': [
+            {'id': 'gtin:00067000008290', 'source': 'provisional', 'name': 'Coca-Cola', 'barcode': '00067000008290', 'nutrients': {}, 'servings': []},
+          ],
+          'entries': [
+            {'id': 'e', 'date': '2026-10-23', 'meal': 'lunch', 'foodId': 'gtin:00067000008290', 'quantity': 355, 'unit': 'g', 'grams': 355, 'createdAt': '2026-10-23T12:00:00.000'},
+          ],
+          'pendingSubmissions': [
+            {
+              'id': '6a1f0c7e-1d2b-4e3f-8a9b-0c1d2e3f4a5b',
+              'provisionalId': 'gtin:00067000008290',
+              'rawBarcode': '06782900',
+              'symbology': 'upce',
+              'gtin': '00067000008290',
+              'nameHint': 'Coca-Cola',
+              'brandHint': 'Coca-Cola Ltd',
+              'note': 'No nutrition table on the product.',
+              'photos': [
+                {'role': 'front', 'file': 'submissions/x/${'a' * 64}.jpg', 'sha256': 'a' * 64, 'contentType': 'image/jpeg', 'width': 1536, 'height': 2048, 'bytes': 412000, 'uploaded': true},
+                {'role': 'nutrition', 'file': 'submissions/x/${'b' * 64}.png', 'sha256': 'b' * 64, 'contentType': 'image/png', 'bytes': 380000},
+                {'role': 'other', 'file': 'submissions/x/${'c' * 64}.jpg', 'sha256': 'c' * 64, 'contentType': 'image/jpeg', 'bytes': 1000},
+              ],
+              'created': true,
+              'createdAt': '2026-10-23T09:30:00.000',
+              'error': 'Offline',
+            },
+            {'id': 'broken'},
+          ],
+          'labelReviews': [
+            {'id': 'r1', 'provisionalId': 'pending:r1', 'stage': 'review', 'createdAt': '2026-11-01T10:00:00.000'},
+          ],
+        };
+
+    test('become label reviews at the photos stage, to be read with a key, and are saved as reviews', () async {
       final dir = await Directory.systemTemp.createTemp('nutrimeter');
       addTearDown(() => dir.delete(recursive: true));
       final file = File('${dir.path}/nutrimeter.json');
+      await file.writeAsString(jsonEncode(oldDataFile()));
 
       final state = await AppState.load(file: file);
-      expect(state.dataDir!.path, dir.path);
-      state.addSubmission(submission(), const Food(id: 'gtin:00067000008290', source: FoodSource.provisional, name: 'Coca-Cola', nutrients: {}));
-      state.setCatalogue(sample());
+      expect(state.labelReviews.keys, unorderedEquals(['r1', '6a1f0c7e-1d2b-4e3f-8a9b-0c1d2e3f4a5b']),
+          reason: 'one that cannot be read is dropped; reviews already on the phone stay');
+      expect(state.labelReviews['r1']!.stage, ReviewStage.review);
+      final r = state.labelReviews['6a1f0c7e-1d2b-4e3f-8a9b-0c1d2e3f4a5b']!;
+      expect(r.stage, ReviewStage.photos);
+      expect(r.provisionalId, 'gtin:00067000008290');
+      expect((r.rawBarcode, r.symbology, r.gtin), ('06782900', 'upce', '00067000008290'));
+      expect((r.nameHint, r.brandHint, r.note), ('Coca-Cola', 'Coca-Cola Ltd', 'No nutrition table on the product.'));
+      expect(r.createdAt, DateTime(2026, 10, 23, 9, 30));
+      expect([for (final p in r.photos) (p.role, p.uploaded, p.width, p.extension)],
+          [(PhotoRole.front, true, 1536, 'jpg'), (PhotoRole.nutrition, false, null, 'png'), (PhotoRole.other, false, null, 'jpg')]);
+      expect((r.firstRead, r.runs.length, r.error, r.uploaded, r.published), (null, 0, null, false, false));
+      expect(state.openReviews.map((x) => x.id), contains(r.id), reason: 'the diary offers it');
+      expect(state.openReviewForGtin('00067000008290')!.id, r.id, reason: 'scanning it again opens the review');
+      expect(state.resolve('gtin:00067000008290')!.source, FoodSource.provisional, reason: 'the diary keeps its provisional food');
+      expect(state.entries.single.foodId, 'gtin:00067000008290');
+
+      // Once it is read and accepted, it uploads as any label review does: the same id, hints and photos (what was
+      // uploaded already is not sent again).
+      final row = r.submission.toRow();
+      expect((row['id'], row['provisional_id'], row['gtin'], row['name_hint'], row['brand_hint']),
+          ('6a1f0c7e-1d2b-4e3f-8a9b-0c1d2e3f4a5b', 'gtin:00067000008290', '00067000008290', 'Coca-Cola', 'Coca-Cola Ltd'));
+      expect(r.submission.photos.where((p) => !p.uploaded), hasLength(2));
+
       await state.save();
-
+      final saved = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      expect(saved.containsKey('pendingSubmissions'), isFalse, reason: 'nothing waits for the desktop any more');
       final again = await AppState.load(file: file);
-      final s = again.pendingSubmissions.single;
-      expect(s.id, '6a1f0c7e-1d2b-4e3f-8a9b-0c1d2e3f4a5b');
-      expect(s.provisionalId, 'gtin:00067000008290');
-      expect((s.rawBarcode, s.symbology, s.gtin), ('06782900', 'upce', '00067000008290'));
-      expect((s.nameHint, s.brandHint, s.created, s.error), ('Coca-Cola', 'Coca-Cola', true, 'Offline'));
-      expect(s.createdAt, DateTime(2026, 10, 23, 9, 30));
-      expect([for (final p in s.photos) (p.role, p.uploaded, p.width, p.extension)],
-          [(PhotoRole.front, true, 1536, 'jpg'), (PhotoRole.nutrition, false, null, 'png')]);
-      expect(s.photos.first.objectPath('uid', s.id), 'uid/${s.id}/${'a' * 64}.jpg');
-      expect(again.resolve('gtin:00067000008290')!.source, FoodSource.provisional);
-      expect(again.catalogue.food(pendingId)!.name, 'Organic Eggs');
-
+      expect(again.labelReviews.keys, unorderedEquals(['r1', '6a1f0c7e-1d2b-4e3f-8a9b-0c1d2e3f4a5b']));
+      final back = again.labelReviews['6a1f0c7e-1d2b-4e3f-8a9b-0c1d2e3f4a5b']!;
+      expect((back.stage, back.brandHint, back.photos.length), (ReviewStage.photos, 'Coca-Cola Ltd', 3));
       final backup = jsonDecode(again.exportJson()) as Map<String, dynamic>;
-      expect(backup.containsKey('pendingSubmissions'), isFalse);
-      expect(backup.containsKey('catalogue'), isFalse);
-      again.importJson(jsonEncode({'app': 'nutrimeter', 'schema': 1}));
-      expect(again.pendingSubmissions, hasLength(1), reason: 'restoring a backup keeps what waits to upload');
-      expect(again.catalogue.records, hasLength(5));
-
-      again.removeSubmission(s.id);
-      expect(again.pendingSubmissions, isEmpty);
+      expect(backup.containsKey('labelReviews') || backup.containsKey('pendingSubmissions'), isFalse, reason: 'photos stay out of backups');
       await again.save(); // before the temporary directory goes
+    });
+
+    test('one already moved is not replaced by the copy an older file still holds', () {
+      final old = oldDataFile();
+      old['labelReviews'] = [
+        {
+          'id': '6a1f0c7e-1d2b-4e3f-8a9b-0c1d2e3f4a5b',
+          'provisionalId': 'gtin:00067000008290',
+          'gtin': '00067000008290',
+          'stage': 'review',
+          'createdAt': '2026-10-23T09:30:00.000',
+        },
+      ];
+      final state = AppState.memory()..importJson(jsonEncode(old));
+      expect(state.labelReviews.values.single.stage, ReviewStage.review);
     });
 
     test('the submissions row matches the database constraints', () {
@@ -640,7 +693,7 @@ void main() {
 
     test('a product still waiting for review opens instead of being captured again, filled in once published', () async {
       final state = AppState.memory();
-      state.addSubmission(PendingSubmission(id: 'sub', provisionalId: provisional.id, createdAt: DateTime(2026)), provisional);
+      state.cacheFood(provisional);
       expect((await state.lookupBarcode(gtin))!.source, FoodSource.provisional, reason: 'no session');
       expect((await state.lookupBarcode(gtin, refresh: () async => throw const SocketException('offline')))!.name, 'Eggs');
       final f = await state.lookupBarcode(gtin, refresh: () async => state.setCatalogue(sample()));
@@ -661,10 +714,7 @@ void main() {
         ],
       }));
       expect(state.awaitingReview, isFalse, reason: 'foods from Open Food Facts wait for nothing');
-      state.addSubmission(
-        PendingSubmission(id: 'sub', provisionalId: pendingId, createdAt: DateTime(2026)),
-        const Food(id: pendingId, source: FoodSource.provisional, name: 'Farm eggs', nutrients: {}),
-      );
+      state.cacheFood(const Food(id: pendingId, source: FoodSource.provisional, name: 'Farm eggs', nutrients: {}));
       expect(state.awaitingReview, isTrue);
       state.setCatalogue(sample());
       expect(state.awaitingReview, isFalse, reason: 'published through its alias');
@@ -676,7 +726,7 @@ void main() {
       addTearDown(tester.view.reset);
       final state = AppState.memory();
       const provisional = Food(id: pendingId, source: FoodSource.provisional, name: 'Farm eggs', nutrients: {});
-      state.addSubmission(PendingSubmission(id: pendingId.substring(8), provisionalId: pendingId, createdAt: DateTime(2026)), provisional);
+      state.cacheFood(provisional);
       state.log(date: isoDate(DateTime.now()), meal: Meal.breakfast, food: provisional, quantity: 106, unit: 'g');
       await tester.pumpWidget(NutrimeterApp(state: state));
       expect(find.text('Farm eggs'), findsOneWidget);

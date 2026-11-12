@@ -13,7 +13,6 @@ import '../services/catalogue.dart';
 import '../services/cnf.dart';
 import '../services/reading_settings.dart';
 import '../services/taxonomy_asset.dart';
-import '../services/submissions.dart';
 import 'label_review.dart';
 import 'model.dart';
 
@@ -49,10 +48,6 @@ class AppState extends ChangeNotifier implements FoodLibrary {
 
   /// The published food catalogue, synced from the backend while signed in. A cache: not part of backups.
   Catalogue catalogue = Catalogue.empty;
-
-  /// Products captured on this device that have not reached the review queue yet. Not part of backups: their
-  /// photos are files on this device.
-  List<PendingSubmission> pendingSubmissions = [];
 
   /// Products being read and reviewed on this phone, by id. Not part of backups: their photos are files on this device.
   Map<String, LabelReview> labelReviews = {};
@@ -343,44 +338,18 @@ class AppState extends ChangeNotifier implements FoodLibrary {
   @visibleForTesting
   Future<void> get catalogueSaved => _catalogueWrite;
 
-  /// A product just captured: its provisional food is saved at once (so it can be logged) and its submission waits
-  /// for upload.
-  void addSubmission(PendingSubmission submission, Food provisional) {
-    savedFoods[provisional.id] = provisional;
-    pendingSubmissions = [...pendingSubmissions, submission];
-    _changed();
-  }
-
-  void updateSubmission(PendingSubmission submission) {
-    final i = pendingSubmissions.indexWhere((s) => s.id == submission.id);
-    if (i < 0) return;
-    pendingSubmissions = [...pendingSubmissions]..[i] = submission;
-    _changed();
-  }
-
-  /// Forgets a pending submission (queued for review, or discarded) and deletes its photos from the device. Its
-  /// provisional food stays, so diary entries keep working.
-  void removeSubmission(String id) {
-    pendingSubmissions = pendingSubmissions.where((s) => s.id != id).toList();
-    _changed();
-    final dir = dataDir;
-    if (dir == null) return;
-    Directory('${dir.path}/submissions/$id').delete(recursive: true).then((_) {}, onError: (Object _) {});
-  }
-
   /// Adds or replaces a review.
   void putReview(LabelReview r) {
     labelReviews = {...labelReviews, r.id: r};
     _changed();
   }
 
-  /// Forgets a review and deletes its photos from the device (unless [deletePhotos] is false, when a pending upload
-  /// takes them over). An accepted product stays in your foods.
-  void removeReview(String id, {bool deletePhotos = true}) {
+  /// Forgets a review and deletes its photos from the device. An accepted product stays in your foods.
+  void removeReview(String id) {
     labelReviews = {...labelReviews}..remove(id);
     _changed();
     final dir = dataDir;
-    if (dir == null || !deletePhotos) return;
+    if (dir == null) return;
     Directory('${dir.path}/submissions/$id').delete(recursive: true).then((_) {}, onError: (Object _) {});
   }
 
@@ -417,7 +386,7 @@ class AppState extends ChangeNotifier implements FoodLibrary {
   String exportJson() => const JsonEncoder.withIndent('  ').convert(_toJson(backup: true));
 
   /// Replaces everything with a backup made by [exportJson]. Throws [FormatException] if it isn't one. The catalogue
-  /// cache and pending uploads are not in backups and stay as they are.
+  /// cache and label reviews are not in backups and stay as they are.
   void importJson(String raw) {
     final j = jsonDecode(raw);
     if (j is! Map<String, dynamic> || j['app'] != 'nutrimeter') throw const FormatException('Not a Nutrimeter backup');
@@ -425,7 +394,7 @@ class AppState extends ChangeNotifier implements FoodLibrary {
     _changed();
   }
 
-  /// Clears your diary, foods, recipes and targets. The catalogue cache and products waiting to upload stay.
+  /// Clears your diary, foods, recipes and targets. The catalogue cache and label reviews stay.
   void resetAll() {
     savedFoods = {};
     customFoods = {};
@@ -461,7 +430,6 @@ class AppState extends ChangeNotifier implements FoodLibrary {
         'entries': [for (final e in entries) e.toJson()],
         'targets': targets.toJson(),
         'recent': recent,
-        if (!backup) 'pendingSubmissions': [for (final s in pendingSubmissions) s.toJson()],
         if (!backup) 'labelReviews': [for (final r in labelReviews.values) r.toJson()],
         'readingSettings': readingSettings.toJson(),
       };
@@ -477,9 +445,14 @@ class AppState extends ChangeNotifier implements FoodLibrary {
     // Older versions kept the catalogue cache here.
     if (j['catalogue'] is Map) catalogue = Catalogue.fromJson((j['catalogue'] as Map).cast<String, dynamic>());
     catalogue = _withProvisionalNames(catalogue);
-    if (j['pendingSubmissions'] is List) pendingSubmissions = list('pendingSubmissions').map(PendingSubmission.fromJson).toList();
     if (j['labelReviews'] is List) {
       labelReviews = {for (final r in list('labelReviews').map(_tryReview).nonNulls) r.id: r};
+    }
+    // Products an older version kept for the retired desktop review queue become label reviews at the photos stage,
+    // to be read with a key; their provisional foods stay in savedFoods. The next save writes them as reviews.
+    if (j['pendingSubmissions'] is List) {
+      final moved = list('pendingSubmissions').map(_tryOldSubmission).nonNulls.where((r) => !labelReviews.containsKey(r.id));
+      labelReviews = {...labelReviews, for (final r in moved) r.id: r};
     }
     if (j['readingSettings'] is Map) readingSettings = ReadingSettings.fromJson((j['readingSettings'] as Map).cast<String, dynamic>());
     _resolved = null;
@@ -491,6 +464,15 @@ LabelReview? _tryReview(Map<String, dynamic> j) {
     return LabelReview.fromJson(j);
   } catch (e) {
     debugPrint('Could not read a label review: $e');
+    return null;
+  }
+}
+
+LabelReview? _tryOldSubmission(Map<String, dynamic> j) {
+  try {
+    return reviewFromOldSubmission(j);
+  } catch (e) {
+    debugPrint('Could not read a product waiting for the desktop review: $e');
     return null;
   }
 }
