@@ -244,6 +244,8 @@ writes schema 3. No phone review has been published on prod yet. If that version
 - **The 1,785 for a person and the 2,733 parked** stay unpublished and are set aside for now (2026-11-12). A scan of
   one goes through the phone like any new product.
 - **French names:** `name_fr` stays beside `name`, as the app reads it today.
-- **Still open:** whether the desktop review queue retires with the campaign. Two app submissions have waited in
-  prod's queue since 2026-10-24/25. `accept_extraction` (the desktop accept) still publishes the old shape and isn't
-  checked by `record_problems`; it would need moving to schema 3 if the queue stays.
+- **The desktop review queue** retired with the campaign on 2026-11-12, and the admin's phone app with it: products
+  come in through the phone's label review. Every submission still waiting was closed (`close_submissions`,
+  `20261112130000_close_review_queue.sql`), linked to the record published from it where there is one; 20,880 in
+  dev, 1 in staging and 2 in prod. `accept_extraction` stays in the database, unused, and still publishes the old
+  shape.

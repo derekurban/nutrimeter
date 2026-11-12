@@ -19,6 +19,8 @@ String submissionStatusLabel(String status) => switch (status) {
       'claimed' || 'drafted' => 'In review',
       'accepted' => 'Accepted',
       'rejected' => 'Rejected',
+      // The desktop review queue was retired: a submission still waiting in it was closed, unreviewed.
+      'closed' => 'Closed',
       _ => status,
     };
 
