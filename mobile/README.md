@@ -1,7 +1,7 @@
 # Nutrimeter · app
 
 Flutter, no code generation. Dependencies: `mobile_scanner` (camera barcodes), `image_picker` (label photos),
-`supabase_flutter` (food review: sign-in, catalogue, uploads), `crypto` (photo hashes), `http`, `path_provider`,
+`supabase_flutter` (food review: sign-in, catalogue, publishing), `crypto` (photo hashes), `http`, `path_provider`,
 `lucide_icons_flutter`. State is one `ChangeNotifier` (`AppState`) saved as a JSON file in the app's private storage.
 In-app updates and links are two small method channels in `MainActivity.kt`.
 
@@ -11,15 +11,15 @@ In-app updates and links are two small method channels in `MainActivity.kt`.
 |---|---|
 | `lib/data/nutrients.dart` | The tracked nutrients: units, groups, adult DRIs and limits, scaling helpers |
 | `lib/data/model.dart` | Foods, servings, diary entries, recipes, profile and targets, with hand-written JSON |
-| `lib/data/store.dart` | `AppState`: diary, saved/custom foods, recipes, targets, recent, the catalogue cache and pending uploads; resolving ids (through aliases); persistence, export/import |
+| `lib/data/store.dart` | `AppState`: diary, saved/custom foods, recipes, targets, recent, the catalogue cache and label reviews; resolving ids (through aliases); persistence, export/import |
 | `lib/logic/foods.dart` | Resolving foods, servings and grams, recipe totals (recipes can nest; cycles are cut) |
 | `lib/logic/barcode.dart` | Barcodes to GTIN-14: check digits, padding, UPC-E expansion |
 | `lib/logic/targets.dart` | Mifflin–St Jeor BMR, energy and macro targets, overrides, progress |
 | `lib/services/cnf.dart` | Loads `assets/cnf/foods.json` in an isolate and searches it (English and French names) |
 | `lib/services/backend_config.dart` | The Supabase project per build: the dev branch for debug, the staging branch for staging, the main project for prod, or `NUTRIMETER_BACKEND` (publishable keys) |
-| `lib/services/backend.dart` | Supabase from the app's side: start-up, sign-in, catalogue sync on launch and resume (every resume while products wait for review), the upload queue |
+| `lib/services/backend.dart` | Supabase from the app's side: start-up, sign-in, catalogue sync on launch and resume (every resume while products wait for review), publishing accepted label reviews |
 | `lib/services/catalogue.dart` | The published catalogue: download, offline cache, record → `Food`, aliases, search |
-| `lib/services/submissions.dart` | Captured products waiting to upload (persisted), the idempotent upload, submission status |
+| `lib/services/submissions.dart` | Label photos on the phone, a label review's idempotent upload, the submissions history with statuses |
 | `lib/services/taxonomy_asset.dart` | The food taxonomy bundled as `assets/taxonomy.json` (identical in dev, staging and prod, without pictures), used until the taxonomy first syncs; regenerate it if a migration changes the categories. The taxonomy and its pictures sync without an account (`20261107130000_public_taxonomy.sql`), so pictures show signed out |
 | `lib/services/llm.dart` | Anthropic Messages API (streamed) and OpenAI Responses API over plain HTTP: photos in, schema-constrained JSON out, tokens and cost |
 | `lib/services/reading_settings.dart` | API keys (Android Keystore), which model does each reading step, the confidence bar, spend |
@@ -28,8 +28,8 @@ In-app updates and links are two small method channels in `MainActivity.kt`.
 | `lib/data/label_review.dart` | A product being read and reviewed on the phone: photos, every model call, readings, decisions, publish state |
 | `lib/logic/update.dart` | Updates and feedback, the pure part: reading GitHub releases, picking one, comparing versions, issue links |
 | `lib/services/platform.dart` | The Android calls behind updates and links (`MainActivity.kt`, `UpdateReceiver.kt`) |
-| `lib/ui/` | `diary` (home), `food_picker` + `food_detail` (search and log), `scanner`, `capture` (add a product from photos), `review` (sign-in card, submissions), `recipes`, `custom_foods`, `settings` (targets, food review, data, updates, feedback, attribution), `updates` (the updater, its panel and trail, feedback links), shared `widgets`, `nutrition` panels, `theme` (below) |
-| `test/` | `logic_test.dart` (targets, recipes, the real CNF asset, backups), `barcode_test.dart` (GTIN normalisation), `catalogue_test.dart` (record → food, aliases, old saved foods, pending uploads, submission status, build config, barcode lookup, sync throttle, a diary row filling in after review), `update_test.dart` (releases, versions, issue forms) and `widget_test.dart` (log a food end to end; a search miss leads to the capture screen) |
+| `lib/ui/` | `diary` (home), `food_picker` + `food_detail` (search and log), `scanner`, `product_flow` (a new find: photos, reading, review), `label_review_screen` (the review against the photos), `added_products` (what was added from labels), `reading_settings_page` (keys, models, the add-a-key prompt), `review` (sign-in card, submissions history), `recipes`, `custom_foods`, `settings` (targets, food review, data, updates, feedback, attribution), `updates` (the updater, its panel and trail, feedback links), shared `widgets`, `nutrition` panels, `theme` (below) |
+| `test/` | `logic_test.dart` (targets, recipes, the real CNF asset, backups), `barcode_test.dart` (GTIN normalisation), `catalogue_test.dart` (record → food, aliases, old saved foods, products kept for the retired desktop queue becoming label reviews, submission status, build config, barcode lookup, sync throttle, a diary row filling in after review), `label_reading_test.dart` and `llm_test.dart` (label reading), `reading_key_test.dart` (no reading without a key), `update_test.dart` (releases, versions, issue forms) and `widget_test.dart` (log a food end to end; a search miss leads to the photos screen) |
 | `tool/` | `icons.py` (below) |
 
 ## Design
@@ -154,24 +154,31 @@ card. Without signing in, or offline, everything else works as before.
   custom foods. A miss, or a product of yours still waiting for review, first forces a catalogue sync while signed in
   (up to 8 s; offline or slow, it goes by what the phone has), so a product published since the last sync opens
   directly and one already captured opens instead of being photographed again.
-- **A miss is never a dead end.** A scan miss, a typed barcode miss, or "Add a product" under any search opens the
-  capture screen: the front (required), the Nutrition Facts table (required unless the product has none), ingredients
-  and extra photos (optional), and optional name and brand hints. Saving creates a provisional food at once
-  (`gtin:<14>` for a barcode, `pending:<uuid>` otherwise; "New product" without a name) that is logged by grams or
-  ounces. When the reviewed record is published under that id, or an alias points it there, entries show it.
-- **Uploads** are kept in the data file with their photos copied to `submissions/<id>/` in app storage, so they survive
-  restarts. While signed in they are sent in the background on capture, launch and resume: the `submissions` row (its
+- **A miss is never a dead end.** A scan miss, a typed barcode miss, or "Add a product" under any search is a new
+  find, read from its label on the phone (below). The product reaches the catalogue only that way: the desktop review
+  queue (Nutrimeter Admin) was retired on 2026-11-12.
+- **Uploads.** A label review keeps its photos in `submissions/<id>/` in app storage, so it survives restarts. Once it
+  is accepted, and while signed in, it is published in the background on launch and resume: the `submissions` row (its
   id minted on the phone), each photo to `label-photos/<uid>/<submission>/<sha256>.<ext>` and its `submission_photos`
-  row, then `queue_submission`. Each step tolerates having already happened, so a retry never duplicates anything.
-  Once queued, the local photos are deleted. Targets → Food review → Submissions lists them with their status
-  (claimed and drafted read "In review") and the reviewer's comment on a rejection.
+  row, then `publish_device_review`. Each step tolerates having already happened, so a retry never duplicates anything.
+  Targets → Food review → Submissions is the history of what was sent from the account, with its status: "Uploading"
+  until published, "Accepted" once published, and for what went to the retired desktop queue "In review", "Rejected"
+  (with the reviewer's comment) or "Closed" (still waiting in the queue when it was retired).
+- **Products an older version kept for the desktop queue** (`pendingSubmissions` in the data file, never sent or not
+  fully sent) become label reviews at the photos stage when the app is updated: the same id (so the same photo folder
+  and submission row), photos, barcode, name and brand hints, note and provisional food id. They show on the diary
+  with the products being read, and are read with a key like any other; the diary keeps logging against the
+  provisional food until the reviewed record is published under its id or an alias points it there.
 
 ## Label reading on the phone
 
 A scan or search that finds nothing is a new find: the person photographs the front and the nutrition table
 (ingredients optional) and the label is read on the phone with their own Anthropic or OpenAI key (Targets → Label
-reading; keys live in the Android Keystore via `flutter_secure_storage`, never in the data file or a backup). Without a
-key the photos can still go to the desktop queue as before.
+reading; keys live in the Android Keystore via `flutter_secure_storage`, never in the data file or a backup, and are
+checked with their provider before they are saved). Reading needs a key, and there is no other way in: without one the
+photos screen offers only "Add an API key to read it here", and every other way a reading starts (trying again,
+reading again, a retake, carrying on past a finding, sending notes back) asks for a key first and runs nothing
+without one.
 
 1. **First read** (default Claude Opus 5.5, or GPT-6.1 Sol with only an OpenAI key): the whole package transcribed, as
    in the admin's digitise-v1, plus a box for each line on its photo. A partly legible table, unusable photos, photos of
@@ -185,10 +192,10 @@ key the photos can still go to the desktop queue as before.
 Each line gets a confidence (two agreeing reads 99%, a disagreement 45%, lowered by the reader's caveats and failed
 checks, raised by a clear verifier reading). The review opens on the lines under the bar (90% by default, adjustable)
 with the photo moved to each; notes for the verifier are sent together in one re-read. Accepting builds the record
-(schema 2 plus `per_100g` and gram portions, like the admin's digitised records), saves it as a food at once, opens it
-for logging, and publishes it while signed in: the submission and photos are uploaded without being queued, then
-`publish_device_review` (migration `20261107120000_device_reviews.sql`) records the readings, the person's review, the
-revision and the alias. Every step is saved, so a closed app resumes where it stopped; nothing is re-run unasked.
+in record schema 3 (`../docs/food-model/record-schema.md`, checked by the database), saves it as a food at once, opens
+it for logging, and publishes it while signed in: the submission and photos are uploaded, then `publish_device_review`
+(migrations `20261107120000_device_reviews.sql`, `20261112120000_record_schema_3.sql`) records the readings, the
+person's review, the revision and the alias. Every step is saved, so a closed app resumes where it stopped; nothing is re-run unasked.
 
 ## Behaviour worth knowing
 
@@ -196,7 +203,7 @@ revision and the alias. Every step is saved, so a closed app resumes where it st
   and provisional `pending:<uuid>`. Resolving an id goes through the catalogue (and its aliases) first. CNF and
   catalogue foods you log, and provisional foods, are kept in `savedFoods`, so the diary resolves them offline, before
   the CNF finishes loading, and from a backup on a phone that has not synced. Backups leave out the catalogue cache and
-  pending uploads.
+  label reviews (their photos are files on the phone).
 - **Open Food Facts is gone.** Foods older versions saved from it (`off:<barcode>`) still load and are treated like
   provisional foods: the scanner finds them by barcode, and once the catalogue has that barcode they show the
   reviewed record.

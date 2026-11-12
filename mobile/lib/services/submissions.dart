@@ -65,8 +65,8 @@ class PendingPhoto {
       );
 }
 
-/// A product captured on the device that has not reached the review queue yet. Its [id] is the submission's id,
-/// minted here so every step of the upload can be retried without creating duplicates.
+/// A label review's submission as it is uploaded: the `submissions` row and its photos. Its [id] is the review's id,
+/// minted on the phone so every step of the upload can be retried without creating duplicates.
 class PendingSubmission {
   const PendingSubmission({
     required this.id,
@@ -80,7 +80,6 @@ class PendingSubmission {
     this.photos = const [],
     this.created = false,
     required this.createdAt,
-    this.error,
   });
 
   final String id;
@@ -99,10 +98,7 @@ class PendingSubmission {
   final bool created;
   final DateTime createdAt;
 
-  /// Why the last attempt stopped, for the submissions screen.
-  final String? error;
-
-  PendingSubmission copyWith({List<PendingPhoto>? photos, bool? created, String? Function()? error}) => PendingSubmission(
+  PendingSubmission copyWith({List<PendingPhoto>? photos, bool? created}) => PendingSubmission(
         id: id,
         provisionalId: provisionalId,
         rawBarcode: rawBarcode,
@@ -114,7 +110,6 @@ class PendingSubmission {
         photos: photos ?? this.photos,
         created: created ?? this.created,
         createdAt: createdAt,
-        error: error != null ? error() : this.error,
       );
 
   /// The `submissions` insert. Owner, source and status are left to the database's defaults, which its
@@ -129,36 +124,6 @@ class PendingSubmission {
         'brand_hint': brandHint,
         'note': note,
       };
-
-  Map<String, Object?> toJson() => {
-        'id': id,
-        'provisionalId': provisionalId,
-        'rawBarcode': ?rawBarcode,
-        'symbology': ?symbology,
-        'gtin': ?gtin,
-        'nameHint': ?nameHint,
-        'brandHint': ?brandHint,
-        'note': ?note,
-        'photos': [for (final p in photos) p.toJson()],
-        if (created) 'created': true,
-        'createdAt': createdAt.toIso8601String(),
-        'error': ?error,
-      };
-
-  factory PendingSubmission.fromJson(Map<String, dynamic> j) => PendingSubmission(
-        id: j['id'] as String,
-        provisionalId: j['provisionalId'] as String,
-        rawBarcode: j['rawBarcode'] as String?,
-        symbology: j['symbology'] as String?,
-        gtin: j['gtin'] as String?,
-        nameHint: j['nameHint'] as String?,
-        brandHint: j['brandHint'] as String?,
-        note: j['note'] as String?,
-        photos: [for (final p in (j['photos'] as List? ?? const [])) PendingPhoto.fromJson((p as Map).cast<String, dynamic>())],
-        created: j['created'] as bool? ?? false,
-        createdAt: DateTime.parse(j['createdAt'] as String),
-        error: j['error'] as String?,
-      );
 }
 
 /// JPEG, PNG or WebP from the file's first bytes; null for anything the bucket would refuse.
@@ -203,19 +168,18 @@ bool _duplicateRow(PostgrestException e) => e.code == '23505';
 bool _duplicateObject(StorageException e) =>
     e.statusCode == '409' || e.error == 'Duplicate' || e.message.toLowerCase().contains('already exists');
 
-/// Sends one submission to the review queue: the `submissions` row, then each photo (object, then its row), then
-/// `queue_submission`. Every step is idempotent, so an interrupted upload simply runs again; [onProgress] gets the
-/// submission after each step so the progress can be saved. Photos whose files are gone are dropped. With
-/// [queue] false the submission stays out of the desktop's queue (a review done on the phone publishes it instead).
+/// Uploads a label review's submission before `publish_device_review` publishes from it: the `submissions` row, then
+/// each photo (object, then its row). Nothing is queued: the desktop review queue is retired. Every step is
+/// idempotent, so an interrupted upload simply runs again; [onProgress] gets the submission after each step so the
+/// progress can be saved. Photos whose files are gone are dropped.
 Future<PendingSubmission> uploadSubmission(
   SupabaseClient c,
   PendingSubmission submission, {
   required Directory dataDir,
   required void Function(PendingSubmission) onProgress,
-  bool queue = true,
 }) async {
   final uid = c.auth.currentUser?.id;
-  if (uid == null) throw StateError('Sign in to send products for review.');
+  if (uid == null) throw StateError('Sign in to publish products.');
   var s = submission;
 
   if (!s.created) {
@@ -259,14 +223,6 @@ Future<PendingSubmission> uploadSubmission(
     s = s.copyWith(photos: [for (final p in s.photos) p.sha256 == photo.sha256 ? p.copyWith(uploaded: true) : p]);
     onProgress(s);
   }
-
-  if (!queue) return s;
-  try {
-    await c.rpc('queue_submission', params: {'p_submission': s.id});
-  } on PostgrestException catch (e) {
-    // An earlier attempt queued it and lost the answer.
-    if (!(e.code == '23514' && e.message.contains('already'))) rethrow;
-  }
   return s;
 }
 
@@ -290,7 +246,8 @@ class SubmissionView {
   final String? brandHint;
   final String? gtin;
 
-  /// `uploading`, `queued`, `claimed`, `drafted`, `accepted` or `rejected`.
+  /// `uploading`, `accepted` or `closed`; from the retired desktop queue also `queued`, `claimed`, `drafted` or
+  /// `rejected`.
   final String status;
   final String? recordId;
   final DateTime createdAt;

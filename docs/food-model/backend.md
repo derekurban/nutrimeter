@@ -5,7 +5,8 @@ Supabase over Convex.
 
 **Decided:** Supabase, with no server of our own. The app talks to Supabase directly. Review happens in
 Nutrimeter Admin (the private repo `derekurban/nutrimeter-admin`). It is a server on the desktop that drives the
-local Codex app server, with a web console there and a phone app that reaches it over Tailscale. The main project is `vkhnbxizgnyfmnfphrmk`
+local Codex app server, with a web console there. (Since 2026-11-12, products are reviewed on the phone in Nutrimeter
+itself; the admin's desktop review queue and its phone app are retired, see `record-schema.md`.) The main project is `vkhnbxizgnyfmnfphrmk`
 (Canada Central, Pro plan) and development happens on its persistent `dev` branch (`enbylsacypvbzzdoapyg`).
 Credentials live in `~/.keys/nutrimeter/`, never in the repo.
 
@@ -83,12 +84,10 @@ Rules the database enforces:
 - **App (Flutter):** signs in as you (email and password; sign-ups are off, the account is created on the review
   site). Submits the barcode, photos and hints straight to Supabase, logs the provisional food at once, and
   syncs the published catalogue for offline use. CNF stays bundled.
-- **Nutrimeter Admin (desktop server; console on localhost, phone app over Tailscale):** the queue, the photos
-  beside each AI reading, and the decision.
-  **Start AI review** runs a thread on the local Codex app server: the photos and the taxonomy go into a scratch
-  folder, and the answer must match the extraction schema, whose category field only accepts existing
-  categories or null. The site validates and derives everything, then records the attempt. Accept publishes;
-  reject needs a comment, which the next attempt reads. See that repo's README.
+- **Nutrimeter Admin (desktop server; console on localhost):** the published records, the taxonomy and its
+  illustrations, and the tools that publish CNF foods and digitised products. Until 2026-11-12 it also ran the review
+  queue (AI readings through the local Codex app server, then a person's accept or reject); that queue is retired,
+  and the phone's label review (`publish_device_review`) is how a product comes in.
 - **No GitHub issues.** The queue is the `submissions` table.
 
 ## Environments
