@@ -2,7 +2,7 @@
 
 An open-source nutrition tracker in the spirit of Cronometer: food logging, ~40 tracked nutrients against your
 targets, and custom recipes and foods. Your diary stays on your phone. There is no server of ours: an optional
-account on Supabase carries product photos to review and brings the reviewed catalogue back.
+account on Supabase publishes the products you review and brings the reviewed catalogue back.
 
 **Food data**
 - **Generic foods** (produce, meat, grains, dairy) come from the [Canadian Nutrient File](https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data/canadian-nutrient-file-about-us.html)
@@ -11,11 +11,11 @@ account on Supabase carries product photos to review and brings the reviewed cat
   photograph the front and the Nutrition Facts table (ingredients optional), and the label is read on the phone with
   your own Anthropic or OpenAI key (Targets → Label reading): two independent reads, arithmetic checks, and a stronger
   verifier for whatever is still in doubt. You settle the rest against the photos, and the product is in your foods at
-  once and published to the catalogue (`mobile/README.md`, "Label reading on the phone"). Without a key, the photos go
-  to Nutrimeter Admin, a separate, private desktop server and phone app, where Codex reads the label and draws the
-  taxonomy's illustrations. Signing in (optional, Targets → Food review) publishes and syncs the reviewed catalogue to
-  the phone, where it works offline. Design: `docs/food-model/`. A person accepts every product either way. Photos,
-  readings and decisions are kept for good.
+  once and published to the catalogue (`mobile/README.md`, "Label reading on the phone"). Reading needs a key: it is
+  the only way a new product comes in, since the desktop review queue (Nutrimeter Admin) was retired on 2026-11-12.
+  Signing in (optional, Targets → Food review) publishes what you accept and syncs the reviewed catalogue to the phone,
+  where it works offline. Design: `docs/food-model/`. A person accepts every product. Photos, readings and decisions
+  are kept for good.
 
 **Android app:** `mobile/` is the Flutter app (Android and iOS projects; Android is what's built and tested).
 Its layout, dev loop, builds and releases are in `mobile/README.md`. Releases (signed APKs) are on the

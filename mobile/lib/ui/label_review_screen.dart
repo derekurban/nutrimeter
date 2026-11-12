@@ -17,6 +17,7 @@ import '../services/catalogue.dart';
 import '../services/label_pipeline.dart';
 import '../services/submissions.dart';
 import 'product_flow.dart' show ConfidenceChip;
+import 'reading_settings_page.dart' show requireReadingKey;
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -762,7 +763,9 @@ class _LabelReviewScreenState extends State<LabelReviewScreen> with SingleTicker
         Expanded(
           child: FilledButton.icon(
             icon: const Icon(LucideIcons.send, size: 18),
-            onPressed: () {
+            onPressed: () async {
+              // The notes are read again with the person's key; without one, the prompt to add one.
+              if (!await requireReadingKey(context)) return;
               unawaited(LabelPipeline.recheck(_state, r.id));
             },
             label: Text('Send ${noted.length} line${noted.length == 1 ? '' : 's'} back to the AI'),

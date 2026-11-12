@@ -406,3 +406,49 @@ class _StepSheetState extends State<_StepSheet> {
     );
   }
 }
+
+/// The way forward without a key: opens Targets → Label reading, where a key is checked with its provider before it
+/// is saved. [onBack] runs on coming back from there.
+class AddKeyButton extends StatelessWidget {
+  const AddKeyButton({super.key, this.onBack});
+
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) => FilledButton.icon(
+        icon: const Icon(LucideIcons.keyRound, size: 18),
+        onPressed: () async {
+          await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReadingSettingsPage()));
+          onBack?.call();
+        },
+        label: const Text('Add an API key to read it here'),
+      );
+}
+
+/// Every reading (the first, a re-read, a retry, carrying on, the person's notes) needs a key. True at once with one;
+/// without, a prompt to add one, and true only if a key was added from it, so the action goes on from there.
+Future<bool> requireReadingKey(BuildContext context) async {
+  if (ApiKeys.present.isNotEmpty) return true;
+  final added = await showModalBottomSheet<bool>(
+    context: context,
+    builder: (sheet) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('Reading needs an API key', style: sheet.text.titleLarge),
+          const SizedBox(height: 6),
+          Text(
+            'Labels are read on this phone with your own Anthropic or OpenAI key. Without one, nothing is read and the '
+            'product cannot be added to the catalogue. Your photos stay here meanwhile.',
+            style: TextStyle(color: sheet.muted),
+          ),
+          const SizedBox(height: 16),
+          AddKeyButton(onBack: () {
+            if (ApiKeys.present.isNotEmpty && sheet.mounted) Navigator.of(sheet).pop(true);
+          }),
+        ]),
+      ),
+    ),
+  );
+  return added == true && ApiKeys.present.isNotEmpty;
+}

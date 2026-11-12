@@ -11,6 +11,8 @@ import 'package:nutrimeter/services/llm.dart';
 import 'package:nutrimeter/services/reading_settings.dart';
 import 'package:nutrimeter/services/submissions.dart';
 
+import 'record_schema.dart';
+
 Map<String, dynamic> box(double y) => {'x': 0.2, 'y': y, 'w': 0.6, 'h': 0.04};
 
 Map<String, dynamic> row(String key, String printed, double value, String unit, [String dv = '']) =>
@@ -84,13 +86,19 @@ Map<String, dynamic> secondRead({double protein = 3}) => {
 
 PendingPhoto photo(PhotoRole role) => PendingPhoto(role: role, file: 'submissions/r1/${role.name}.jpg', sha256: 'a' * 64, contentType: 'image/jpeg', bytes: 10);
 
-LabelReview review({Map<String, dynamic>? first, Map<String, dynamic>? second, List<Map<String, dynamic>> verifier = const [], Map<String, LineDecision> decisions = const {}}) =>
+LabelReview review(
+        {Map<String, dynamic>? first,
+        Map<String, dynamic>? second,
+        List<Map<String, dynamic>> verifier = const [],
+        Map<String, LineDecision> decisions = const {},
+        String? nameHint}) =>
     LabelReview(
       id: 'r1',
       provisionalId: 'gtin:00068100084276',
       rawBarcode: '0068100084276',
       symbology: 'ean13',
       gtin: '00068100084276',
+      nameHint: nameHint,
       photos: [photo(PhotoRole.front), photo(PhotoRole.nutrition), photo(PhotoRole.ingredients)],
       stage: ReviewStage.review,
       firstRead: first ?? firstRead(),
@@ -248,6 +256,7 @@ void main() {
       expect(profile['per_100g']['protein'], 20);
       expect(profile['per_100g']['sodium'], 400);
       expect([for (final p in profile['portions'] as List) p['label']], ['1 tbsp (15 g)', '1 package']);
+      expect(recordProblems(draft.data), isEmpty);
 
       final food = catalogueFood(CatalogueRecord(id: draft.recordId, role: 'product', categoryId: draft.categoryId, data: draft.data));
       expect(food.name, 'Smooth Peanut Butter');
@@ -265,9 +274,183 @@ void main() {
       });
       final draft = buildRecord(r, linesOf(r), runs: const []);
       final profile = (draft.data['profiles'] as List).first as Map<String, dynamic>;
-      expect(profile['serving_grams'], 30);
+      final serving = (profile['portions'] as List).singleWhere((p) => p['serving'] == true);
+      expect(serving['label'], '2 tbsp (30 g)');
+      expect(serving['grams'], 30);
+      expect(profile['printed']['serving'], {'text': '2 tbsp (30 g)', 'grams': 30, 'ml': null, 'count': {'amount': 2, 'unit': 'tbsp'}});
+      expect((profile['printed']['rows'] as List).firstWhere((x) => x['key'] == 'protein'), {'key': 'protein', 'amount': 6, 'unit': 'g', 'percent_dv': null});
       expect(profile['per_100g']['protein'], 20);
       expect(profile['per_100g']['energy'], 300);
+      expect(recordProblems(draft.data), isEmpty);
+    });
+
+    test('is schema 3: the label as printed, portions with where their grams came from, and the provenance', () {
+      final r = review();
+      final draft = buildRecord(r, linesOf(r), runs: [
+        StepRun(kind: 'first-read', status: 'done', startedAt: DateTime(2026), provider: 'anthropic', model: 'claude-opus-5-5'),
+        StepRun(kind: 'second-read', status: 'done', startedAt: DateTime(2026), provider: 'openai', model: 'gpt-6.1-sol'),
+        StepRun(kind: 'checks', status: 'done', startedAt: DateTime(2026)),
+        StepRun(kind: 'verifier', status: 'failed', startedAt: DateTime(2026), provider: 'anthropic', model: 'claude-fable-5-1'),
+      ]);
+      final d = draft.data;
+      expect(d.keys.toSet(), {
+        'schema', 'name', 'name_fr', 'brand', 'descriptor', 'qualifiers', 'barcodes', 'package', 'ingredients', 'claims', 'default_profile', 'profiles', 'source',
+      });
+      expect(d['schema'], 3);
+      expect(d['name_fr'], isNull);
+      expect(d['descriptor'], isNull);
+      expect(d['barcodes'], [{'gtin': '00068100084276', 'raw': '0068100084276', 'symbology': 'ean13'}]);
+      expect(d['package'], {'text': '2 kg', 'amount': 2000, 'unit': 'g', 'count': null});
+      expect(d['ingredients'], {
+        'text': 'Select roasted peanuts, soybean oil, corn maltodextrin, sugar, salt',
+        'language': 'en',
+        'contains': 'Peanuts',
+        'may_contain': null,
+        'complete': true,
+      });
+      expect(d['claims'], isEmpty);
+      final profile = (d['profiles'] as List).single as Map<String, dynamic>;
+      expect(profile.keys.toSet(), {'id', 'per_100g', 'portions', 'density', 'printed'});
+      expect(profile['portions'], [
+        {'label': '1 tbsp (15 g)', 'grams': 15, 'ml': null, 'count': {'amount': 1, 'unit': 'tbsp'}, 'grams_from': 'label', 'serving': true},
+        {'label': '1 package', 'grams': 2000, 'ml': null, 'count': {'amount': 1, 'unit': 'package'}, 'grams_from': 'package', 'serving': false},
+      ]);
+      expect(profile['density'], isNull);
+      final printed = profile['printed'] as Map<String, dynamic>;
+      expect(printed['format'], 'canadian-current');
+      expect(printed['languages'], ['en', 'fr']);
+      expect(printed['heading'], isNull);
+      expect(printed['serving'], {'text': 'Per 1 tbsp (15 g) / pour 1 c. à soupe (15 g)', 'grams': 15, 'ml': null, 'count': {'amount': 1, 'unit': 'tbsp'}});
+      expect((printed['rows'] as List).take(2), [
+        {'key': 'energy', 'amount': 90, 'unit': 'kcal', 'percent_dv': null},
+        {'key': 'fat', 'amount': 8, 'unit': 'g', 'percent_dv': 11},
+      ]);
+      expect((printed['rows'] as List).last, {'key': 'sodium', 'amount': 60, 'unit': 'mg', 'percent_dv': 3});
+      expect(d['source'], {
+        'kind': 'label',
+        'method': 'phone',
+        'review': 'person',
+        'version': readingVersion,
+        'extraction': null,
+        'attempt': null,
+        'readers': [
+          {'step': 'first-read', 'provider': 'anthropic', 'model': 'claude-opus-5-5'},
+          {'step': 'second-read', 'provider': 'openai', 'model': 'gpt-6.1-sol'},
+        ],
+        'name_from': 'label',
+      });
+      expect(recordProblems(d), isEmpty);
+    });
+
+    test('a serving in millilitres only gets grams at the typical density, and a multipack its count', () {
+      final f = firstRead(category: 'soft-drinks');
+      f['front']['net_quantity'] = '12 x 355 mL';
+      f['table']['serving'] = {'text': 'Per 250 mL', 'count_amount': -1, 'count_unit': '', 'grams': -1, 'ml': 250, 'box': box(0.2)};
+      final r = review(first: f);
+      final draft = buildRecord(r, linesOf(r), runs: const []);
+      expect(draft.problems, isEmpty);
+      expect(draft.data['package'], {'text': '12 x 355 mL', 'amount': 4260, 'unit': 'ml', 'count': 12});
+      final profile = (draft.data['profiles'] as List).single as Map<String, dynamic>;
+      expect(profile['density'], {'g_per_ml': 1.04, 'from': 'typical'});
+      expect(profile['portions'], [
+        {'label': '250 mL', 'grams': 260, 'ml': 250, 'count': null, 'grams_from': 'density', 'serving': true},
+        {'label': '1 package', 'grams': 4430.4, 'ml': 4260, 'count': {'amount': 1, 'unit': 'package'}, 'grams_from': 'density', 'serving': false},
+      ]);
+      expect(profile['per_100g']['energy'], closeTo(34.62, 0.001));
+      expect(profile['printed']['serving'], {'text': 'Per 250 mL', 'grams': null, 'ml': 250, 'count': null});
+      expect(recordProblems(draft.data), isEmpty);
+
+      // Without its density the record is off-shape: the check sees it.
+      final broken = {...draft.data, 'profiles': [{...profile, 'density': null}]};
+      expect(recordProblems(broken), contains(contains('no density')));
+    });
+
+    test('a serving printed in grams and millilitres gives the density for the package in millilitres', () {
+      final f = firstRead(category: 'milk');
+      f['front']['net_quantity'] = '1.89 L';
+      f['table']['serving'] = {'text': 'Per 1 cup (250 mL / 258 g)', 'count_amount': 1, 'count_unit': 'cup', 'grams': 258, 'ml': 250, 'box': box(0.2)};
+      final r = review(first: f);
+      final draft = buildRecord(r, linesOf(r), runs: const []);
+      final profile = (draft.data['profiles'] as List).single as Map<String, dynamic>;
+      expect(profile['density'], {'g_per_ml': 1.032, 'from': 'label'});
+      expect(profile['portions'], [
+        {'label': '1 cup (250 mL / 258 g)', 'grams': 258, 'ml': 250, 'count': {'amount': 1, 'unit': 'cup'}, 'grams_from': 'label', 'serving': true},
+        {'label': '1 package', 'grams': 1950.5, 'ml': 1890, 'count': {'amount': 1, 'unit': 'package'}, 'grams_from': 'density', 'serving': false},
+      ]);
+      expect(profile['per_100g']['energy'], closeTo(34.88, 0.001));
+      expect(recordProblems(draft.data), isEmpty);
+    });
+
+    test('a counted serving gets a portion of one, a %DV-only row stays a row, and an unread list is no ingredients', () {
+      final f = firstRead();
+      f['table']['serving'] = {'text': 'Per 2 cookies (23 g)', 'count_amount': 2, 'count_unit': 'cookie', 'grams': 23, 'ml': -1, 'box': box(0.2)};
+      (f['nutrients'] as List).add({'key': 'calcium', 'label': 'Calcium', 'printed': '', 'value': -1, 'unit': 'none', 'dv': '10 %', 'box': box(0.8)});
+      f['ingredients'] = {...f['ingredients'] as Map<String, dynamic>, 'text': '', 'contains': '', 'complete': false};
+      final r = review(first: f);
+      final draft = buildRecord(r, linesOf(r), runs: const []);
+      expect(draft.data['ingredients'], isNull);
+      final profile = (draft.data['profiles'] as List).single as Map<String, dynamic>;
+      expect([for (final p in profile['portions'] as List) (p['label'], p['grams'], p['serving'])], [
+        ('2 cookies (23 g)', 23, true),
+        ('1 cookie', 11.5, false),
+        ('1 package', 2000, false),
+      ]);
+      expect((profile['printed']['rows'] as List).last, {'key': 'calcium', 'amount': null, 'unit': null, 'percent_dv': 10});
+      expect(profile['per_100g'].containsKey('calcium'), isFalse);
+      expect(recordProblems(draft.data), isEmpty);
+    });
+
+    test('a list read in part is published as not complete', () {
+      final f = firstRead();
+      f['ingredients'] = {...f['ingredients'] as Map<String, dynamic>, 'complete': false};
+      final r = review(first: f);
+      expect(buildRecord(r, linesOf(r), runs: const []).data['ingredients']['complete'], isFalse);
+    });
+
+    test('a name from the hint says so', () {
+      final f = firstRead();
+      f['front']['name'] = '';
+      final r = review(first: f, nameHint: 'Peanut butter');
+      final draft = buildRecord(r, linesOf(r), runs: const []);
+      expect(draft.problems, isEmpty);
+      expect(draft.data['name'], 'Peanut butter');
+      expect(draft.data['source']['name_from'], 'hint');
+      expect(recordProblems(draft.data), isEmpty);
+    });
+
+    test('the check against record.schema.json catches what schema 2 had', () {
+      final r = review();
+      final data = buildRecord(r, linesOf(r), runs: const []).data;
+      final profile = (data['profiles'] as List).single as Map<String, dynamic>;
+      expect(recordProblems({...data, 'schema': 2}), isNotEmpty);
+      expect(recordProblems({...data, 'label': {'format': 'us'}}), contains(contains(r'$.label: not allowed')));
+      expect(recordProblems({...data, 'profiles': [{...profile, 'serving_grams': 15}]}), isNotEmpty);
+      expect(
+          recordProblems({
+            ...data,
+            'profiles': [
+              {
+                ...profile,
+                'portions': [
+                  for (final p in profile['portions'] as List) {...p as Map<String, dynamic>, 'serving': true},
+                ],
+              },
+            ],
+          }),
+          isNotEmpty);
+      expect(
+          recordProblems({
+            ...data,
+            'profiles': [
+              {
+                ...profile,
+                'portions': [{...(profile['portions'] as List).first as Map<String, dynamic>, 'grams': 0}],
+              },
+            ],
+          }),
+          isNotEmpty);
+      final noName = {...data}..remove('name_fr');
+      expect(recordProblems(noName), contains(r'$: missing name_fr'));
     });
 
     test('cannot be accepted without calories', () {
