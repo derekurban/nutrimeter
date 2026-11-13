@@ -1,7 +1,6 @@
-// The diary's summary in the facelift looks (lib/ui/looks.dart): the day's energy against its target and the three
-// macros. Two layouts, each drawn in whatever edges and dress the look has: "berries" (a big figure beside the icon's
-// three berries, each grown to its macro's share) and "block" (the figure on a block of colour with a sticker, over
-// three jars filling with the macros). The default look keeps its ring card (EnergySummary in nutrition.dart).
+// The summary that heads the original diary layout in the facelift themes (lib/ui/looks.dart): a big figure beside
+// the icon's three berries, each grown to its macro's share. The default theme keeps its ring card (EnergySummary in
+// nutrition.dart). [DayFigures] and the number helpers serve every layout (lib/ui/diary_layouts.dart).
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -43,18 +42,8 @@ Widget lookHero(BuildContext context, Nutrients amounts, Map<String, ResolvedTar
   final d = DayFigures(amounts, targets);
   return switch (context.look.hero) {
     HeroKind.berries => _Berries(d),
-    HeroKind.block => _Block(d),
     HeroKind.classic => const SizedBox.shrink(),
   };
-}
-
-/// The small line over the day's figure: the serif looks say it quietly, the chunky ones shout.
-Widget _kicker(BuildContext context, {Color? color}) {
-  final du = context.du, s = context.look;
-  return s.serif
-      ? Text('eaten so far', style: TextStyle(fontFamily: s.titleFont, fontSize: 15, fontStyle: FontStyle.italic, color: color ?? du.inkSecondary))
-      : Text('TODAY\'S DAMAGE',
-          style: TextStyle(fontFamily: s.titleFont, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 1.5, color: color ?? du.inkSecondary));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -69,7 +58,7 @@ class _Berries extends StatelessWidget {
   Widget build(BuildContext context) {
     final du = context.du, s = context.look;
     final hard = s.shadow == ShadowKind.hard;
-    final face = TextStyle(fontFamily: s.titleFont, color: du.ink);
+    final face = TextStyle(fontFamily: s.figures, color: du.ink);
     final left = d.remaining;
     return Panel(
       child: Padding(
@@ -78,7 +67,7 @@ class _Berries extends StatelessWidget {
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _kicker(context),
+                Text('eaten so far', style: context.text.bodyMedium?.copyWith(color: du.inkSecondary)),
                 const SizedBox(height: 2),
                 FittedBox(
                   fit: BoxFit.scaleDown,
@@ -114,7 +103,7 @@ class _Berries extends StatelessWidget {
                 const SizedBox(width: 10),
                 SizedBox(
                   width: 64,
-                  child: Text(macroLabels[m.key]!, style: face.copyWith(fontSize: 16, fontWeight: s.serif ? FontWeight.w400 : FontWeight.w600)),
+                  child: Text(macroLabels[m.key]!, style: face.copyWith(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
                 Expanded(child: ProgressBar(fraction: ratio(m.grams, m.target), color: du.macro(m.key), showLabel: false)),
                 SizedBox(
@@ -184,149 +173,4 @@ class _BerriesPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_BerriesPainter old) => true;
-}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// Block: the day's figure on a block of colour with a sticker for the share done, and three jars filling with the
-// macros.
-
-class _Block extends StatelessWidget {
-  const _Block(this.d);
-
-  final DayFigures d;
-
-  @override
-  Widget build(BuildContext context) {
-    final du = context.du, s = context.look;
-    final hard = s.shadow == ShadowKind.hard;
-    final face = TextStyle(fontFamily: s.titleFont, color: du.ink, height: 1);
-    final left = d.remaining;
-    const onBlock = Color(0xFFFFFCF5);
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Stack(clipBehavior: Clip.none, children: [
-        SizedBox(
-          width: double.infinity,
-          child: Panel(
-            color: s.heroColor ?? du.accentStrong,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _kicker(context, color: onBlock.withValues(alpha: 0.85)),
-                const SizedBox(height: 6),
-                Text.rich(TextSpan(children: [
-                  TextSpan(
-                    text: thousands(d.consumed),
-                    style: face.copyWith(fontSize: 64, fontWeight: s.numberWeight, letterSpacing: -2.5, color: onBlock, fontFeatures: tabular),
-                  ),
-                  TextSpan(text: ' kcal', style: face.copyWith(fontSize: 22, fontWeight: s.serif ? FontWeight.w400 : FontWeight.w800, color: onBlock)),
-                ])),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: onBlock,
-                    borderRadius: BorderRadius.circular(999),
-                    border: hard ? Border.all(color: du.ink, width: s.borderWidth) : null,
-                  ),
-                  child: Text(
-                    left >= 0 ? '${thousands(left)} left of ${thousands(d.target)}' : '${thousands(-left)} over ${thousands(d.target)}',
-                    style: TextStyle(fontFamily: s.bodyFont, fontSize: 14, height: 1, fontWeight: FontWeight.w600, color: left >= 0 ? du.ink : du.danger),
-                  ),
-                ),
-              ]),
-            ),
-          ),
-        ),
-        Positioned(
-          right: 14,
-          top: -10,
-          child: Transform.rotate(
-            angle: 0.18,
-            child: Container(
-              width: 82,
-              height: 82,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: s.stickerColor ?? const Color(0xFFFFD43B),
-                shape: BoxShape.circle,
-                border: hard ? Border.all(color: du.ink, width: s.borderWidth) : null,
-                boxShadow: hard
-                    ? [BoxShadow(color: du.ink, offset: const Offset(3, 3))]
-                    : [BoxShadow(color: du.ink.withValues(alpha: 0.22), blurRadius: 12, offset: const Offset(0, 5))],
-              ),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text('${(d.fraction * 100).round()}%',
-                    style: face.copyWith(fontSize: 24, fontWeight: s.serif ? FontWeight.w600 : FontWeight.w800, letterSpacing: -1)),
-                const SizedBox(height: 1),
-                Text('done',
-                    style: face.copyWith(fontSize: 12.5, fontWeight: s.serif ? FontWeight.w400 : FontWeight.w600, fontStyle: s.serif ? FontStyle.italic : null)),
-              ]),
-            ),
-          ),
-        ),
-      ]),
-      const SizedBox(height: 16),
-      Row(children: [
-        for (final (i, m) in d.macros.indexed) ...[
-          if (i > 0) const SizedBox(width: 12),
-          Expanded(child: _Jar(macro: m)),
-        ],
-      ]),
-    ]);
-  }
-}
-
-class _Jar extends StatelessWidget {
-  const _Jar({required this.macro});
-
-  final ({String key, double grams, double target, double kcal}) macro;
-
-  @override
-  Widget build(BuildContext context) {
-    final du = context.du, s = context.look;
-    final hard = s.shadow == ShadowKind.hard;
-    final f = ratio(macro.grams, macro.target);
-    final over = f > 1.15;
-    final strong = s.serif ? FontWeight.w600 : FontWeight.w800;
-    return Panel(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-        child: Column(children: [
-          Text(macroLabels[macro.key]!, style: TextStyle(fontFamily: s.titleFont, fontWeight: strong, fontSize: 15, color: du.ink)),
-          const SizedBox(height: 8),
-          Container(
-            height: 84,
-            decoration: BoxDecoration(
-              color: du.sunk,
-              borderRadius: BorderRadius.circular(hard ? 12 : 16),
-              border: hard ? Border.all(color: du.ink, width: s.borderWidth) : null,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: FractionallySizedBox(
-                heightFactor: f.clamp(0.0, 1.0),
-                widthFactor: 1,
-                child: Container(
-                  decoration: BoxDecoration(
-                    // full is the leaf's green in every dress, since Jam's own accent is a berry colour
-                    color: over
-                        ? du.danger
-                        : f >= 1
-                            ? const Color(0xFF7BC62D)
-                            : du.macro(macro.key),
-                    border: hard && f > 0 && f < 1 ? Border(top: BorderSide(color: du.ink, width: s.borderWidth)) : null,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text('${formatAmount(macro.grams)}g',
-              style: TextStyle(fontFamily: s.titleFont, fontWeight: strong, fontSize: 20, color: du.ink, fontFeatures: tabular)),
-          Text('of ${formatAmount(macro.target)}g', style: context.text.bodySmall),
-        ]),
-      ),
-    );
-  }
 }

@@ -35,6 +35,10 @@ class Playground {
   /// The layout the diary uses: the chosen one in playground mode, else the original stack.
   static final layout = ValueNotifier<DiaryLayout>(DiaryLayout.stack);
 
+  /// The standout nutrients, by key, in the order they were picked (lib/ui/diary_layouts.dart). Kept here, not in the
+  /// data file, while the facelift is being tried.
+  static final pinned = ValueNotifier<List<String>>(defaultPinned);
+
   static File? _file;
 
   static Future<void> load() async {
@@ -43,8 +47,12 @@ class Playground {
       if (await _file!.exists()) {
         final j = jsonDecode(await _file!.readAsString()) as Map<String, dynamic>;
         enabled.value = j['enabled'] as bool? ?? enabled.value;
-        chosen.value = Look.byId(j['look'] as String?);
-        chosenLayout.value = DiaryLayout.byName(j['layout'] as String?);
+        // A choice from an earlier round that no longer exists opens on this round's first candidates, not on the
+        // default, so a new build never looks unchanged.
+        final look = j['look'] as String?, layout = j['layout'] as String?;
+        chosen.value = Look.all.any((l) => l.id == look) ? Look.byId(look) : crisp;
+        chosenLayout.value = DiaryLayout.values.any((l) => l.name == layout) ? DiaryLayout.byName(layout) : DiaryLayout.buckets;
+        if (j['pinned'] case final List p) pinned.value = [for (final k in p) if (k is String) k];
       }
     } catch (_) {
       // A missing or broken file is just the defaults.
@@ -64,6 +72,11 @@ class Playground {
     _save();
   }
 
+  static void togglePin(String key) {
+    pinned.value = pinned.value.contains(key) ? [for (final k in pinned.value) if (k != key) k] : [...pinned.value, key];
+    _save();
+  }
+
   static void setEnabled(bool on) {
     enabled.value = on;
     _apply();
@@ -78,7 +91,7 @@ class Playground {
   static void _save() {
     final f = _file;
     if (f == null) return;
-    f.writeAsString(jsonEncode({'enabled': enabled.value, 'look': chosen.value.id, 'layout': chosenLayout.value.name})).ignore();
+    f.writeAsString(jsonEncode({'enabled': enabled.value, 'look': chosen.value.id, 'layout': chosenLayout.value.name, 'pinned': pinned.value})).ignore();
   }
 }
 
@@ -264,7 +277,7 @@ class _Dock extends StatelessWidget {
             ValueListenableBuilder<Look>(
               valueListenable: Playground.chosen,
               builder: (context, chosen, _) => _TabRow(
-                label: 'Colour',
+                label: 'Theme',
                 tabs: [
                   for (final l in Look.all) _Tab(text: l.name, selected: l.id == chosen.id, swatch: l, onTap: () => Playground.choose(l)),
                 ],

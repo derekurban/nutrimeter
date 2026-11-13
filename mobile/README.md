@@ -44,33 +44,42 @@ target is met and danger red when a limit is passed. Colour never decorates.
 
 The 2026-11 facelift is being chosen on the phone, in two independent parts.
 
-**Layouts** (`lib/ui/diary_layouts.dart`) are the diary's structure: how the day is organised and how its numbers are
-drawn. Every layout shows the same day through one `DayView` and logs through the same callbacks.
+**The model** the rounds arrived at: the diary is a meter, not a meal log. What matters is the day's total in four
+buckets (calories, protein, carbs, fat), a few **standout** nutrients the person picks, and every nutrient at a
+glance. Which meal a food belonged to does not matter, so outside the original layout there are no meals: one list of
+the day's food (a food is still stored with the meal for its time of day, so nothing is lost).
+
+**Layouts** (`lib/ui/diary_layouts.dart`) arrange that meter. Every layout shows the same day through one `DayView`.
 
 | Layout | The day as |
 |---|---|
-| Stack | the original: a summary, a card per meal, nutrient bars |
-| Timeline | one rail, meals as stops along it with a running total |
-| Tiles | a grid: energy, macro rings, energy by meal as a bar chart, a nutrient heat grid |
-| Wheel | one ring split by meal, and a radial wheel of every nutrient against its target |
-| Ledger | type and rules, no cards: P / C / F / kcal columns, a dense nutrient grid |
-| Focus | the answer first: a sentence on where the day stands, the current meal, what is short |
+| Original | a summary, a card per meal, nutrient bars (what the app uses outside playground mode) |
+| Buckets | four bucket tiles, standout tiles, the latest food, the nutrient grid |
+| Board | everything as tiles, nutrients first: bucket rings, standouts as large cells, the grid, food last |
+| Focus | a sentence on where the day stands, buckets and standouts as slim rows, food folded away, the grid |
+| Split | a switch between Totals (a scoreboard, standouts, the grid) and Food |
 
-**Colour schemes** (`lib/ui/looks.dart`) are colour tokens (`Du`) plus a `LookStyle` (faces, corners, outlines,
-shadows, bars); widgets read both, so the whole app follows. Surfaces are `Panel`s, not `Card`s, so a scheme can
-outline or hard-shadow them. Besides the default: Orchard, Jam, Paper, Leaf, Blush and Dusk (dark), all carrying the
-berry icon's colours for the macros.
+The **nutrient grid** is one cell per nutrient, alphabetical, in two sections (carbs, fats and more; vitamins and
+minerals). A cell deepens toward the accent as its target fills and turns the full accent at 100%; a limit stays gray
+until it is passed, then danger. Tapping a cell shows its numbers and makes it a standout or not; "Choose" on the
+standouts lists them all. The standouts are kept with the playground's choices for now, not in the data file.
 
-How it got here: round one was six looks (Orchard and Jam kept; a Nutrition Facts panel, a dark gauge, a till receipt
-and a two-ink print dropped); round two crossed Orchard and Jam and showed that repainting one structure was not the
-answer; round three split structure from colour.
+**Themes** (`lib/ui/looks.dart`) are colour tokens (`Du`) plus a `LookStyle` (faces, corners, shadows, bars); widgets
+read both, so the whole app follows. Besides the default they are all Paper (warm white, near-black ink, the berry
+icon's colours only for the macros and a target met) in different faces: Paper (Bricolage Grotesque), Crisp (Geist),
+Round (Plus Jakarta Sans), Press (Archivo), Meter (Geist with figures in Geist Mono) and Night (Crisp on warm black).
+
+How it got here: round one, six looks (a Nutrition Facts panel, a dark gauge, a till receipt and a two-ink print
+dropped); round two, crosses of Orchard and Jam, which showed that repainting one structure was not the answer; round
+three, structure split from colour (Timeline, Wheel and Ledger dropped; coloured grounds, Jam's cartoon and Orchard's
+thin italic dropped, Paper kept); round four, the meter above.
 
 Playground mode (`lib/ui/playground.dart`) floats a draggable berry button over the app; it opens a dock with a row of
-layout tabs and a row of colour tabs (the app stays live above it), a sample day for an empty install, and a way out.
+layout tabs and a row of theme tabs (the app stays live above it), a sample day for an empty install, and a way out.
 Targets → Playground turns it on in any build. It is on by default in the `playground` flavour:
 `app.nutrimeter.playground`, "Nutrimeter Playground", berries on aubergine, on the dev backend, installed beside the
 real app. A push to the `playground` branch releases it as a prerelease carrying `nutrimeter-playground.apk`, and
-installed playground apps update themselves from those. Once a layout and a scheme are chosen, they become the app and
+installed playground apps update themselves from those. Once a layout and a theme are chosen, they become the app and
 the rest (and their fonts) go.
 
 ## Dev loop

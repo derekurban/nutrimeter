@@ -64,16 +64,16 @@ enum ShadowKind { none, soft, hard }
 /// How a progress bar is drawn: a filled track, or a filled track in an inked outline.
 enum BarKind { solid, outlined }
 
-/// Which summary heads the diary (lib/ui/heroes.dart): the default's ring card, a big figure beside the icon's
-/// berries, or the figure on a block of colour over three jars.
-enum HeroKind { classic, berries, block }
+/// Which summary heads the original diary layout (lib/ui/heroes.dart): the default's ring card, or a big figure beside
+/// the icon's berries.
+enum HeroKind { classic, berries }
 
 /// Everything about a look that is not a colour token.
 class LookStyle extends ThemeExtension<LookStyle> {
   const LookStyle({
     this.titleFont = 'Albert Sans',
     this.bodyFont = 'Wix Madefor Text',
-    this.serif = false,
+    this.numberFont,
     this.titleWeight = FontWeight.w500,
     this.numberWeight = FontWeight.w300,
     this.titleTracking = 0,
@@ -89,14 +89,12 @@ class LookStyle extends ThemeExtension<LookStyle> {
     this.roundCaps = false,
     this.roundThumbs = false,
     this.hero = HeroKind.classic,
-    this.heroColor,
-    this.stickerColor,
   });
 
   final String titleFont, bodyFont;
 
-  /// The title face is a serif with an italic: small lines over figures are set in it, quietly.
-  final bool serif;
+  /// The face for figures (the day's calories, a bucket's amount, a cell's share); the title face when null.
+  final String? numberFont;
   final FontWeight titleWeight, numberWeight;
   final double titleTracking;
 
@@ -120,8 +118,7 @@ class LookStyle extends ThemeExtension<LookStyle> {
   final bool roundThumbs;
   final HeroKind hero;
 
-  /// The block summary's colour (the accent when null) and its sticker's.
-  final Color? heroColor, stickerColor;
+  String get figures => numberFont ?? titleFont;
 
   @override
   LookStyle copyWith() => this;
@@ -176,7 +173,7 @@ ThemeData buildTheme(Brightness b, [Look look = Look.standard]) {
   TextStyle title(double size, double height, FontWeight w, double tracking) =>
       TextStyle(fontFamily: tf, fontSize: size, height: height, fontWeight: w, letterSpacing: tracking + s.titleTracking, color: du.ink);
   final text = TextTheme(
-    displayLarge: title(56, 1.0, s.numberWeight, -1.8),
+    displayLarge: title(56, 1.0, s.numberWeight, -1.8).copyWith(fontFamily: s.figures),
     headlineLarge: title(40, 1.1, s.titleWeight, -1.1),
     headlineMedium: title(24, 1.25, s.titleWeight, -0.4),
     titleLarge: title(18, 1.33, s.titleWeight, -0.2),

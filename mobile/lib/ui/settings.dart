@@ -211,7 +211,7 @@ class SettingsPage extends StatelessWidget {
                 title: const Text('Try new layouts and colours'),
                 subtitle: Text(on
                     ? '${Playground.chosenLayout.value.label} in ${Playground.chosen.value.name}. The floating button switches both.'
-                    : 'A floating button over the app switches the diary layout and the colour scheme.'),
+                    : 'A floating button over the app switches the diary layout and the theme.'),
               ),
             ),
           ),

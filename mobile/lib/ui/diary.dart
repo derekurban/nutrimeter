@@ -36,11 +36,15 @@ class _DiaryPageState extends State<DiaryPage> {
     return d.year == DateTime.now().year ? label : '$label ${d.year}';
   }
 
+  /// Whether the layout on files food under meals. Without them a food is still stored with the meal for the time of
+  /// day, so nothing is lost if meals come back; it is just never asked for or shown.
+  bool get _meals => Playground.layout.value.meals;
+
   Future<void> _add(Meal meal, {bool scan = false}) async {
-    final result = await pickFood(context, title: 'Add food', actionLabel: 'Add to diary', meal: meal, scan: scan);
+    final result = await pickFood(context, title: 'Add food', actionLabel: 'Add to diary', meal: _meals ? meal : null, scan: scan);
     if (result == null || !mounted) return;
     AppScope.read(context).log(date: _date, meal: result.meal ?? meal, food: result.food, quantity: result.quantity, unit: result.unit);
-    showToast(context, 'Added ${result.food.name} to ${(result.meal ?? meal).label}');
+    showToast(context, _meals ? 'Added ${result.food.name} to ${(result.meal ?? meal).label}' : 'Added ${result.food.name}');
   }
 
   Future<void> _edit(DiaryEntry entry) async {
@@ -48,7 +52,7 @@ class _DiaryPageState extends State<DiaryPage> {
     final food = state.resolve(entry.foodId);
     if (food == null) return;
     final result = await Navigator.of(context).push<PickResult>(MaterialPageRoute(
-      builder: (_) => FoodDetailPage(food: food, actionLabel: 'Update', meal: entry.meal, initialQuantity: entry.quantity, initialUnit: entry.unit),
+      builder: (_) => FoodDetailPage(food: food, actionLabel: 'Update', meal: _meals ? entry.meal : null, initialQuantity: entry.quantity, initialUnit: entry.unit),
     ));
     if (result == null || !mounted) return;
     state.updateEntry(entry.copyWith(quantity: result.quantity, unit: result.unit, grams: result.grams, meal: result.meal));
@@ -142,13 +146,23 @@ class _DiaryPageState extends State<DiaryPage> {
         ),
       ]),
       // The body is the layout chosen in playground mode (lib/ui/diary_layouts.dart); the original stack otherwise.
-      body: ValueListenableBuilder<DiaryLayout>(
-        valueListenable: Playground.layout,
-        builder: (context, layout, _) => ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 112), children: [
+      body: ListenableBuilder(
+        listenable: Listenable.merge([Playground.layout, Playground.pinned]),
+        builder: (context, _) => ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 112), children: [
           OpenReviewsBanner(onOpen: (r) => resumeReview(context, r, date: _date)),
           ...diaryBody(
-            layout,
-            DayView(state: state, entries: entries, onAdd: _add, onEdit: _edit, onRemove: _remove, onMealAction: _mealAction),
+            Playground.layout.value,
+            DayView(
+              state: state,
+              entries: entries,
+              pinned: Playground.pinned.value,
+              onAdd: _add,
+              onAddFood: () => _add(MealLabel.forTime(DateTime.now())),
+              onEdit: _edit,
+              onRemove: _remove,
+              onMealAction: _mealAction,
+              onTogglePin: Playground.togglePin,
+            ),
           ),
         ]),
       ),
