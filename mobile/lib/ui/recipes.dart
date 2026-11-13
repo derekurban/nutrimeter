@@ -63,7 +63,7 @@ class _RecipeCard extends StatelessWidget {
     final perServing = withDerived(scaleBy(recipeTotals(state, recipe).nutrients, 1 / (recipe.servings < 1 ? 1 : recipe.servings)));
     return Padding(
       padding: const EdgeInsets.only(top: 12),
-      child: Card(
+      child: Panel(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => openRecipeEditor(context, recipe.id),
@@ -229,7 +229,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
             Text('${formatAmount(totals.grams)} g total', style: TextStyle(color: context.muted)),
           ]),
           const SectionTitle('Ingredients'),
-          Card(
+          Panel(
             clipBehavior: Clip.antiAlias,
             child: Column(children: [
               for (final ing in _draft.ingredients)

@@ -514,7 +514,7 @@ class _Reading extends StatelessWidget {
         Text(r.displayName, style: context.text.titleMedium),
         if (r.rawBarcode != null) Text(r.rawBarcode!, style: TextStyle(color: du.inkTertiary, fontSize: 12.5, fontFeatures: tabular)),
         const SizedBox(height: 14),
-        Card(
+        Panel(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Column(children: [
@@ -560,7 +560,7 @@ class _Reading extends StatelessWidget {
         ],
         if (conf != null) ...[
           const SizedBox(height: 12),
-          Card(
+          Panel(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

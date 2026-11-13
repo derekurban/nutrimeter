@@ -7,6 +7,7 @@ import '../data/nutrients.dart';
 import '../data/store.dart';
 import '../logic/targets.dart';
 import '../version.dart';
+import 'playground.dart';
 import 'reading_settings_page.dart';
 import 'review.dart';
 import 'theme.dart';
@@ -37,7 +38,7 @@ class SettingsPage extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           UpdateBanner(onGo: () => Scrollable.ensureVisible(_updates.currentContext!, duration: const Duration(milliseconds: 400), curve: Curves.easeOutCubic)),
           const SectionTitle('Profile'),
-          Card(
+          Panel(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -76,7 +77,7 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
           const SectionTitle('Energy'),
-          Card(
+          Panel(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -99,7 +100,7 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
           const SectionTitle('Macro split'),
-          Card(
+          Panel(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -147,7 +148,7 @@ class SettingsPage extends StatelessWidget {
           SectionTitle('Nutrient targets', trailing: Text('tap to change', style: TextStyle(color: context.muted, fontSize: 12))),
           for (final group in NutrientGroup.values) ...[
             Padding(padding: const EdgeInsets.fromLTRB(4, 10, 4, 4), child: Text(group.label, style: const TextStyle(fontWeight: FontWeight.w600))),
-            Card(
+            Panel(
               clipBehavior: Clip.antiAlias,
               child: Column(children: [
                 for (final def in nutrients.where((n) => n.group == group && n.key != 'energy' && !n.derived))
@@ -160,7 +161,7 @@ class SettingsPage extends StatelessWidget {
           const SectionTitle('Food review'),
           const FoodReviewCard(),
           const SectionTitle('Your data'),
-          Card(
+          Panel(
             clipBehavior: Clip.antiAlias,
             child: Column(children: [
               ListTile(
@@ -199,6 +200,20 @@ class SettingsPage extends StatelessWidget {
                 },
               ),
             ]),
+          ),
+          const SectionTitle('Playground'),
+          Panel(
+            child: ValueListenableBuilder<bool>(
+              valueListenable: Playground.enabled,
+              builder: (_, on, _) => SwitchListTile(
+                value: on,
+                onChanged: Playground.setEnabled,
+                title: const Text('Try new looks'),
+                subtitle: Text(on
+                    ? 'Wearing ${Playground.chosen.value.name}. The floating button switches looks.'
+                    : 'A floating button over the app switches between the facelift candidates.'),
+              ),
+            ),
           ),
           ValueListenableBuilder(
             valueListenable: updateAvailable,

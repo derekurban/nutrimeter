@@ -138,7 +138,6 @@ class _DiaryPageState extends State<DiaryPage> {
           // the view's one accent-filled button: its main action
           backgroundColor: context.du.accentStrong,
           foregroundColor: context.du.onAccent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           icon: const Icon(LucideIcons.plus),
           label: const Text('Log food'),
           onPressed: () => _add(MealLabel.forTime(DateTime.now())),
@@ -179,13 +178,14 @@ class _MealCard extends StatelessWidget {
     final totals = totalNutrients(state, entries);
     return Padding(
       padding: const EdgeInsets.only(top: 12),
-      child: Card(
+      child: Panel(
         clipBehavior: Clip.antiAlias,
         child: Column(children: [
+          if (context.look.mealRule) Container(height: 8, color: context.du.ink),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 0, 0),
             child: Row(children: [
-              Text(meal.label, style: context.text.titleLarge),
+              Text(context.look.caps ? meal.label.toUpperCase() : meal.label, style: context.text.titleLarge),
               const SizedBox(width: 10),
               if (entries.isNotEmpty)
                 Expanded(
@@ -208,6 +208,7 @@ class _MealCard extends StatelessWidget {
               ),
             ]),
           ),
+          if (context.look.dashed && entries.isNotEmpty) const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: DashedRule(height: 4)),
           for (final e in entries) _EntryTile(entry: e, onTap: () => onEdit(e), onRemove: () => onRemove(e)),
           ListTile(
             dense: true,

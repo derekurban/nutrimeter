@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/nutrients.dart';
 import '../logic/targets.dart';
+import 'heroes.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -14,12 +15,13 @@ class EnergySummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (context.look.hero != HeroKind.classic) return lookHero(context, amounts, targets);
     final consumed = amounts['energy'] ?? 0;
     final target = targets['energy']?.target ?? 0;
     final remaining = target - consumed;
     final parts = macroEnergy(amounts);
     final macroKcal = parts.fold(0.0, (a, p) => a + p.kcal);
-    return Card(
+    return Panel(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -105,9 +107,9 @@ class NutrientTargets extends StatelessWidget {
         for (final group in NutrientGroup.values) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-            child: Text(group.label, style: context.text.labelLarge?.copyWith(color: context.muted)),
+            child: Text(context.look.caps ? group.label.toUpperCase() : group.label, style: sectionLabel(context)),
           ),
-          Card(
+          Panel(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               child: Column(children: [

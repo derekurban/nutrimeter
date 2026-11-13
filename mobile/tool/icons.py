@@ -5,10 +5,10 @@ cream square, full bleed, 1024 px. iOS takes it as it is (iOS rounds it itself).
 the cream for its adaptive icon, so this lifts them off: the background is one flat colour, and each edge pixel is
 split into how much berry it holds (alpha) and that berry's colour, taken from the nearest pixel that is all berry. The
 cut-out goes back onto any background without a cream fringe. That is how staging gets the same berries on amber, so
-the two installs can be told apart.
+the installs can be told apart (playground's are on aubergine).
 
   python -I tool/icons.py          writes prod icons under android/app/src/main/res and ios/Runner/Assets.xcassets,
-                                   staging ones under android/app/src/staging/res, and 512 px previews
+                                   staging ones under android/app/src/staging/res, playground ones under android/app/src/playground/res, and 512 px previews
                                    tool/icon-<flavor>.png (needs Pillow, numpy and scipy)
 
 Legacy ic_launcher.png is the full rounded square. The adaptive icon (API 26+) is a solid background colour plus a
@@ -26,7 +26,8 @@ from scipy import ndimage
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 SOURCE = os.path.join(ROOT, 'tool', 'icon-source.png')
 BG = (255, 247, 232)                                # the artwork's flat background
-TILE = {'prod': BG, 'staging': (250, 200, 104)}    # staging: the same berries on amber
+TILE = {'prod': BG, 'staging': (250, 200, 104),    # staging: the same berries on amber
+        'playground': (38, 20, 44)}                 # playground: on aubergine
 TILE_RADIUS = 0.22                                  # legacy icon corner, as a share of its size
 
 
@@ -132,5 +133,6 @@ if __name__ == '__main__':
     mono = silhouette(art, berries)
     write_android('prod', os.path.join(ROOT, 'android', 'app', 'src', 'main', 'res'), berries, mono)
     write_android('staging', os.path.join(ROOT, 'android', 'app', 'src', 'staging', 'res'), berries, mono)
+    write_android('playground', os.path.join(ROOT, 'android', 'app', 'src', 'playground', 'res'), berries, mono)
     write_ios(os.path.join(ROOT, 'ios', 'Runner', 'Assets.xcassets', 'AppIcon.appiconset'), art)
     print('icons written')

@@ -40,6 +40,22 @@ Madefor Text for everything else (`assets/fonts/`, OFL), and icons are Lucide. D
 are gray, the three macros told apart by lightness (protein darkest, fat lightest); a bar turns accent green when its
 target is met and danger red when a limit is passed. Colour never decorates.
 
+## Playground: the facelift looks
+
+The 2026-11 facelift is being chosen on the phone. `lib/ui/looks.dart` holds the default look (the design system
+above) and six candidates built from the berry icon: Orchard (cream, plum, a soft serif), Facts (a Nutrition Facts
+panel), Jam (outlines and hard shadows), Nightshade (aubergine dark, a gauge), Receipt (a till receipt) and Riso
+(two-ink print). A look is colour tokens (`Du`) plus a `LookStyle` (faces, corners, outlines, shadows, bars, and which
+diary summary from `lib/ui/heroes.dart` heads the day); widgets read both, so the whole app follows. Surfaces are
+`Panel`s, not `Card`s, so a look can outline, dash or hard-shadow them.
+
+Playground mode (`lib/ui/playground.dart`) floats a draggable berry button over the app; it opens a drawer of looks,
+a "Fill today with a sample day" action for an empty install, and "Leave playground". Targets → Playground turns it on
+in any build. It is on by default in the `playground` flavour: `app.nutrimeter.playground`, "Nutrimeter Playground",
+berries on aubergine, on the dev backend, installed beside the real app. A push to the `playground` branch releases it
+as a prerelease carrying `nutrimeter-playground.apk`, and installed playground apps update themselves from those.
+Once a look is chosen, it becomes the default and the rest (and their fonts) go.
+
 ## Dev loop
 
 ```
@@ -66,6 +82,7 @@ Two flavours on one dimension, so a try-out never touches the real install:
 |---|---|---|---|
 | `prod` | `app.nutrimeter` | Nutrimeter | berries on cream |
 | `staging` | `app.nutrimeter.staging` | Nutrimeter Staging | berries on amber |
+| `playground` | `app.nutrimeter.playground` | Nutrimeter Playground | berries on aubergine |
 
 Every `flutter run` or `flutter build apk` needs `--flavor prod|staging`. Debug builds add `.dev` to the id ("Nutrimeter
 Dev"), so a dev loop on a phone installs beside the real app instead of over it. The launcher icons (Android adaptive

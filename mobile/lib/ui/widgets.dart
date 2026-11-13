@@ -10,51 +10,163 @@ import '../services/taxonomy_asset.dart';
 import 'theme.dart';
 
 /// A horizontal progress bar with its percentage printed inside. Gray while it fills; the accent once a target is met;
-/// danger once a limit is passed ([over]). A limit ([isLimit]) stays gray until then.
+/// danger once a limit is passed ([over]). A limit ([isLimit]) stays gray until then. [color] fills it instead of gray
+/// while it fills, for looks that colour the macros. The look decides its shape: a filled track, an inked outline, or
+/// a row of printed blocks.
 class ProgressBar extends StatelessWidget {
-  const ProgressBar({super.key, required this.fraction, this.isLimit = false, this.over = false, this.height = 16});
+  const ProgressBar({super.key, required this.fraction, this.isLimit = false, this.over = false, this.height, this.color, this.showLabel = true});
 
   final double fraction;
   final bool isLimit;
   final bool over;
-  final double height;
+  final double? height;
+  final Color? color;
+
+  /// Print the percentage (beside a thin bar, inside a thick one). Off where the figures sit next to the bar already.
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
-    final du = context.du;
+    final du = context.du, s = context.look;
+    final h = height ?? s.barHeight;
     final pct = fraction.isFinite ? (fraction * 100).round() : 0;
     final met = !isLimit && pct >= 100; // as printed, so "100%" is never gray
-    final fill = over ? du.danger : met ? du.accentStrong : du.dataNeutral;
-    final onFill = (over || met) && fraction >= 0.5;
+    final fill = over ? du.danger : met ? du.accentStrong : (color ?? du.dataNeutral);
+    final width = fraction.isFinite ? fraction.clamp(0.0, 1.0) : 0.0;
+    final label = TextStyle(fontFamily: s.bodyFont, fontSize: 10.5, height: 1, letterSpacing: 0, fontWeight: FontWeight.w600, fontFeatures: tabular);
+    if (s.bar == BarKind.blocks) {
+      return Semantics(
+        value: '$pct%',
+        child: Row(children: [
+          Expanded(child: SizedBox(height: h, child: CustomPaint(painter: _BlocksPainter(width, fill, du.lineStrong)))),
+          SizedBox(width: 40, child: Text('$pct%', textAlign: TextAlign.right, style: label.copyWith(color: over ? du.danger : du.ink))),
+        ]),
+      );
+    }
+    // The percentage sits on the fill once the fill is dark enough to need light text.
+    final onFill = fraction >= 0.5 && ThemeData.estimateBrightnessForColor(fill) == Brightness.dark;
+    final outlined = s.bar == BarKind.outlined;
+    final radius = BorderRadius.circular(s.barRadius.clamp(0, h / 2));
+    final bar = ClipRRect(
+      borderRadius: radius,
+      child: SizedBox(
+        height: h,
+        child: Stack(fit: StackFit.expand, children: [
+          ColoredBox(color: context.track),
+          FractionallySizedBox(alignment: Alignment.centerLeft, widthFactor: width, child: ColoredBox(color: fill)),
+          if (h >= 12 && showLabel) Center(child: Text('$pct%', style: label.copyWith(color: onFill ? Colors.white : du.ink))),
+        ]),
+      ),
+    );
     return Semantics(
       value: '$pct%',
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: SizedBox(
-          height: height,
-          child: Stack(fit: StackFit.expand, children: [
-            ColoredBox(color: context.track),
-            FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: fraction.isFinite ? fraction.clamp(0, 1) : 0,
-              child: ColoredBox(color: fill),
-            ),
-            Center(
-              child: Text('$pct%',
-                  style: context.text.labelSmall?.copyWith(
-                    fontSize: 10.5,
-                    height: 1,
-                    letterSpacing: 0,
-                    fontWeight: FontWeight.w600,
-                    fontFeatures: tabular,
-                    color: onFill ? (over ? du.surface : du.onAccent) : du.ink,
-                  )),
-            ),
-          ]),
+      child: outlined
+          ? DecoratedBox(
+              position: DecorationPosition.foreground,
+              decoration: BoxDecoration(borderRadius: radius, border: Border.all(color: du.ink, width: s.borderWidth)),
+              child: bar)
+          : h >= 12 || !showLabel
+              ? bar
+              : Row(children: [
+                  Expanded(child: bar),
+                  SizedBox(width: 40, child: Text('$pct%', textAlign: TextAlign.right, style: label.copyWith(color: over ? du.danger : du.inkSecondary))),
+                ]),
+    );
+  }
+}
+
+/// A bar as a row of printed cells, filled from the left.
+class _BlocksPainter extends CustomPainter {
+  _BlocksPainter(this.fraction, this.fill, this.empty);
+
+  final double fraction;
+  final Color fill, empty;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const gap = 2.0;
+    final n = (size.width / 9).floor().clamp(8, 40);
+    final w = (size.width - gap * (n - 1)) / n;
+    final filled = (fraction * n).round();
+    for (var i = 0; i < n; i++) {
+      final r = Rect.fromLTWH(i * (w + gap), 0, w, size.height);
+      if (i < filled) {
+        canvas.drawRect(r, Paint()..color = fill);
+      } else {
+        canvas.drawRect(r.deflate(0.5), Paint()..color = empty..style = PaintingStyle.stroke..strokeWidth = 1);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BlocksPainter old) => old.fraction != fraction || old.fill != fill || old.empty != empty;
+}
+
+/// A surface in the look's own shape: its fill, corner, outline (hairline, ink, or dashed) and shadow (none, soft, or
+/// hard). Stands in for [Card] everywhere.
+class Panel extends StatelessWidget {
+  const Panel({super.key, required this.child, this.clipBehavior = Clip.none, this.color});
+
+  final Widget child;
+  final Clip clipBehavior;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.look, du = context.du;
+    final radius = BorderRadius.circular(s.radius);
+    final deco = panelDecoration(context, color: color);
+    Widget body = Material(type: MaterialType.transparency, child: child);
+    if (clipBehavior != Clip.none) body = ClipRRect(borderRadius: radius, clipBehavior: clipBehavior, child: body);
+    return DecoratedBox(
+      decoration: BoxDecoration(color: deco.color, borderRadius: radius, boxShadow: deco.boxShadow),
+      child: CustomPaint(
+        foregroundPainter: s.dashed ? DashedOutline(color: du.lineStrong, radius: s.radius) : null,
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(borderRadius: radius, border: deco.border),
+          child: body,
         ),
       ),
     );
   }
+}
+
+/// A dashed outline, or (with [horizontal]) one dashed line across the middle.
+class DashedOutline extends CustomPainter {
+  DashedOutline({required this.color, this.radius = 0, this.horizontal = false, this.dash = 5, this.gap = 4});
+
+  final Color color;
+  final double radius, dash, gap;
+  final bool horizontal;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1;
+    final path = horizontal
+        ? (Path()..moveTo(0, size.height / 2)..lineTo(size.width, size.height / 2))
+        : (Path()..addRRect(RRect.fromRectAndRadius((Offset.zero & size).deflate(0.5), Radius.circular(radius))));
+    for (final m in path.computeMetrics()) {
+      for (var d = 0.0; d < m.length; d += dash + gap) {
+        canvas.drawPath(m.extractPath(d, math.min(d + dash, m.length)), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(DashedOutline old) => old.color != color || old.radius != radius;
+}
+
+/// A dashed rule across, for looks printed on paper.
+class DashedRule extends StatelessWidget {
+  const DashedRule({super.key, this.height = 12, this.color});
+
+  final double height;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) =>
+      SizedBox(height: height, width: double.infinity, child: CustomPaint(painter: DashedOutline(color: color ?? context.du.lineStrong, horizontal: true)));
 }
 
 class RingSegment {
@@ -78,19 +190,20 @@ class Ring extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox.square(
         dimension: size,
         child: CustomPaint(
-          painter: _RingPainter(segments, total, stroke, context.track),
+          painter: _RingPainter(segments, total, stroke, context.track, context.look.roundCaps),
           child: Center(child: child),
         ),
       );
 }
 
 class _RingPainter extends CustomPainter {
-  _RingPainter(this.segments, this.total, this.stroke, this.track);
+  _RingPainter(this.segments, this.total, this.stroke, this.track, this.round);
 
   final List<RingSegment> segments;
   final double total;
   final double stroke;
   final Color track;
+  final bool round;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -99,6 +212,7 @@ class _RingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke;
     canvas.drawArc(rect, 0, math.pi * 2, false, paint..color = track);
+    if (round) paint.strokeCap = StrokeCap.round;
     if (total <= 0) return;
     var start = -math.pi / 2;
     var used = 0.0;
@@ -112,7 +226,7 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) => old.total != total || old.segments != segments || old.track != track;
+  bool shouldRepaint(_RingPainter old) => old.total != total || old.segments != segments || old.track != track || old.round != round;
 }
 
 List<({String key, double kcal})> macroEnergy(Nutrients n) =>
@@ -178,20 +292,21 @@ class FoodThumb extends StatelessWidget {
   Widget build(BuildContext context) {
     final f = food;
     final url = f?.imageUrl;
-    final du = context.du;
+    final du = context.du, s = context.look;
+    final corner = BorderRadius.circular(s.roundThumbs ? size / 2 : s.radius == 0 ? 0 : math.min(8, s.radius));
     final letter = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: du.sunk, borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: du.sunk, borderRadius: corner),
       child: Text(
         (f?.name.isNotEmpty ?? false) ? f!.name.characters.first.toUpperCase() : '?',
-        style: TextStyle(fontFamily: titleFont, fontSize: size * 0.42, fontWeight: FontWeight.w500, color: du.inkSecondary),
+        style: TextStyle(fontFamily: s.titleFont, fontSize: size * 0.42, fontWeight: FontWeight.w500, color: du.inkSecondary),
       ),
     );
     if (url == null) return letter;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: corner,
       child: Container(
         width: size,
         height: size,
@@ -216,7 +331,7 @@ class SourceBadge extends StatelessWidget {
     final du = context.du;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(color: du.surface, borderRadius: BorderRadius.circular(999), border: Border.all(color: du.line, width: 0.6)),
+      decoration: BoxDecoration(color: du.surface, borderRadius: BorderRadius.circular(context.look.radius == 0 ? 0 : 999), border: Border.all(color: du.line, width: 0.6)),
       child: Text(source.short, style: context.text.labelSmall?.copyWith(fontSize: 10.5, letterSpacing: 0, color: du.inkSecondary)),
     );
   }
@@ -311,7 +426,7 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(4, 24, 4, 10),
         child: Row(children: [
-          Expanded(child: Text(text, style: context.text.labelLarge?.copyWith(color: context.muted))),
+          Expanded(child: Text(context.look.caps ? text.toUpperCase() : text, style: sectionLabel(context))),
           ?trailing,
         ]),
       );
@@ -335,3 +450,11 @@ Future<bool> confirmDialog(BuildContext context, String title, String body, {Str
       ),
     ) ??
     false;
+
+/// A section's label in the look: muted, and in capitals tracked out for looks that print them that way.
+TextStyle? sectionLabel(BuildContext context) {
+  final s = context.look;
+  return s.caps
+      ? context.text.labelSmall?.copyWith(fontSize: 11.5, fontWeight: FontWeight.w600, letterSpacing: s.labelTracking, color: context.muted)
+      : context.text.labelLarge?.copyWith(color: context.muted);
+}

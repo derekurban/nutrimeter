@@ -28,6 +28,7 @@ void main() {
       expect(r.notes, 'notes');
       expect(r.assets[assetFor('prod')], 'https://x/n.apk');
       expect(r.assets[assetFor('staging')], 'https://x/s.apk');
+      expect(assetFor('playground'), 'nutrimeter-playground.apk');
       expect(r.at!.year, 2026);
       expect(parseRelease('{"message":"Not Found"}'), isNull);
       expect(parseRelease('not json'), isNull);
@@ -37,6 +38,7 @@ void main() {
       expect(tagBuild('v0.13.6-staging.100042'), 100042);
       expect(tagBuild('v0.13.6'), isNull);
       expect(tagBuild('v0.13.7-prod.100043'), 100043);
+      expect(tagBuild('v0.13.7-playground.100044'), 100044);
       final p = parseRelease('{"tag_name":"v0.13.7-prod.100043","assets":[]}')!;
       expect(isNewer(p, '0.13.7', 100042), isTrue);
       expect(isNewer(p, '0.13.7', 100043), isFalse);
@@ -77,6 +79,7 @@ void main() {
       expect(buildLine('0.13.7-staging', 100042, 'staging'), '0.13.7 (build 100042) · staging');
       expect(buildLine('0.13.7', 100043, 'prod'), '0.13.7 (build 100043)');
       expect(buildLine('0.13.7', 0, 'prod'), '0.13.7');
+      expect(buildLine('0.13.7-playground', 100044, 'playground'), '0.13.7 (build 100044) · playground');
       expect(deviceLine(maker: 'Google', model: 'Pixel 9 Pro', android: '16', sdk: 36), 'Google Pixel 9 Pro · Android 16 (API 36)');
       expect(deviceLine(maker: 'OnePlus', model: 'ONEPLUS A6003', android: '11', sdk: 30), 'ONEPLUS A6003 · Android 11 (API 30)');
       expect(deviceLine(), '');
