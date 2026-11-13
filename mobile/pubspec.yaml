@@ -91,24 +91,7 @@ flutter:
           weight: 500
         - asset: assets/fonts/WixMadeforText-600.ttf
           weight: 600
-    # The facelift looks' faces (lib/ui/looks.dart), tried in playground mode; only the chosen look's will stay.
-    # All OFL, from Google Fonts; the licences sit beside them.
-    - family: Instrument Sans
-      fonts:
-        - asset: assets/fonts/InstrumentSans-400.ttf
-          weight: 400
-        - asset: assets/fonts/InstrumentSans-500.ttf
-          weight: 500
-        - asset: assets/fonts/InstrumentSans-600.ttf
-          weight: 600
-    - family: Bricolage Grotesque
-      fonts:
-        - asset: assets/fonts/BricolageGrotesque-400.ttf
-          weight: 400
-        - asset: assets/fonts/BricolageGrotesque-600.ttf
-          weight: 600
-        - asset: assets/fonts/BricolageGrotesque-800.ttf
-          weight: 800
+    # The facelift theme's face (lib/ui/looks.dart, Crisp): Geist, OFL, from Google Fonts; its licence sits beside it.
     - family: Geist
       fonts:
         - asset: assets/fonts/Geist-400.ttf
@@ -119,34 +102,6 @@ flutter:
           weight: 600
         - asset: assets/fonts/Geist-700.ttf
           weight: 700
-    - family: Geist Mono
-      fonts:
-        - asset: assets/fonts/GeistMono-500.ttf
-          weight: 500
-        - asset: assets/fonts/GeistMono-600.ttf
-          weight: 600
-        - asset: assets/fonts/GeistMono-700.ttf
-          weight: 700
-    - family: Plus Jakarta Sans
-      fonts:
-        - asset: assets/fonts/PlusJakartaSans-400.ttf
-          weight: 400
-        - asset: assets/fonts/PlusJakartaSans-500.ttf
-          weight: 500
-        - asset: assets/fonts/PlusJakartaSans-700.ttf
-          weight: 700
-        - asset: assets/fonts/PlusJakartaSans-800.ttf
-          weight: 800
-    - family: Archivo
-      fonts:
-        - asset: assets/fonts/Archivo-400.ttf
-          weight: 400
-        - asset: assets/fonts/Archivo-500.ttf
-          weight: 500
-        - asset: assets/fonts/Archivo-700.ttf
-          weight: 700
-        - asset: assets/fonts/Archivo-800.ttf
-          weight: 800
 
   # To add assets to your application, add an assets section, like this:
   # assets:

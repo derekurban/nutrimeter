@@ -51,7 +51,7 @@ class Playground {
         // default, so a new build never looks unchanged.
         final look = j['look'] as String?, layout = j['layout'] as String?;
         chosen.value = Look.all.any((l) => l.id == look) ? Look.byId(look) : crisp;
-        chosenLayout.value = DiaryLayout.values.any((l) => l.name == layout) ? DiaryLayout.byName(layout) : DiaryLayout.buckets;
+        chosenLayout.value = DiaryLayout.values.any((l) => l.name == layout) ? DiaryLayout.byName(layout) : DiaryLayout.unfold;
         if (j['pinned'] case final List p) pinned.value = [for (final k in p) if (k is String) k];
       }
     } catch (_) {

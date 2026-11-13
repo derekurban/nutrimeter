@@ -94,10 +94,24 @@ class _DiaryPageState extends State<DiaryPage> {
     }
   }
 
+  /// The day on screen, as the layouts see it (lib/ui/diary_layouts.dart).
+  DayView _view(AppState state) => DayView(
+        state: state,
+        entries: state.entriesFor(_date),
+        pinned: Playground.pinned.value,
+        changes: Listenable.merge([state, Playground.pinned]),
+        again: () => _view(state),
+        onAdd: _add,
+        onAddFood: () => _add(MealLabel.forTime(DateTime.now())),
+        onEdit: _edit,
+        onRemove: _remove,
+        onMealAction: _mealAction,
+        onTogglePin: Playground.togglePin,
+      );
+
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
-    final entries = state.entriesFor(_date);
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 4,
@@ -150,20 +164,7 @@ class _DiaryPageState extends State<DiaryPage> {
         listenable: Listenable.merge([Playground.layout, Playground.pinned]),
         builder: (context, _) => ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 112), children: [
           OpenReviewsBanner(onOpen: (r) => resumeReview(context, r, date: _date)),
-          ...diaryBody(
-            Playground.layout.value,
-            DayView(
-              state: state,
-              entries: entries,
-              pinned: Playground.pinned.value,
-              onAdd: _add,
-              onAddFood: () => _add(MealLabel.forTime(DateTime.now())),
-              onEdit: _edit,
-              onRemove: _remove,
-              onMealAction: _mealAction,
-              onTogglePin: Playground.togglePin,
-            ),
-          ),
+          ...diaryBody(Playground.layout.value, _view(state)),
         ]),
       ),
     );

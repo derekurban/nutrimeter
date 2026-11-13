@@ -1,20 +1,12 @@
-// The themes the app can wear. [Look.standard] is the original (derekurban/design-system v0.1.0). The others are
-// candidates for the 2026-11 facelift, tried on the phone in playground mode (lib/ui/playground.dart) with any diary
-// layout (lib/ui/diary_layouts.dart).
+// The themes the app can wear. [Look.standard] is the original (derekurban/design-system v0.1.0). The other is the
+// 2026-11 facelift's, tried on the phone in playground mode (lib/ui/playground.dart): Crisp, which is Paper's colours
+// (warm white, near-black ink, and the berry icon's plum, raspberry and lavender for the macros and leaf green for a
+// target met, as the only colour) set in Geist, heavy for titles and figures. Night is Crisp on warm black; they are
+// two tabs while the light one is being judged, and are meant to become one theme that follows the phone.
 //
-// Round four. Of round three's schemes Derek kept Paper: warm white, near-black ink, and the berry icon's plum,
-// raspberry and lavender (the macros) and leaf green (a target met) as the only colour. Coloured grounds (Leaf, Blush,
-// Dusk) put colour where it meant nothing, Jam read as a cartoon, Orchard was too thin and too italic. What Paper
-// still lacked was its type, so these are Paper in different faces, all set heavier than before, and Paper at night:
-//
-//   paper    Bricolage Grotesque over Instrument Sans: round three's Paper, set heavier
-//   crisp    Geist: precise and even
-//   round    Plus Jakarta Sans: rounder and friendlier, heavy figures
-//   press    Archivo: a sturdy grotesque, the most character
-//   meter    Geist with every figure in Geist Mono: the numbers read like an instrument's
-//   night    Crisp on warm black
-//
-// Only one theme is meant to survive.
+// How it got here: six looks, then crosses of Orchard and Jam, then colour split from structure (Paper kept: coloured
+// grounds put colour where it meant nothing, Jam read as a cartoon, Orchard was too thin and too italic), then Paper
+// in five faces, of which Derek picked Geist.
 import 'package:flutter/material.dart';
 
 import 'theme.dart';
@@ -52,7 +44,7 @@ class Look {
 
   static const standard = Look(id: 'default', name: 'Default', blurb: 'Today\'s app: gray, quiet, one moss accent', light: Du.light, dark: Du.dark);
 
-  static final all = [standard, paper, crisp, round, press, meter, night];
+  static final all = [standard, crisp, night];
 
   static Look byId(String? id) => all.firstWhere((l) => l.id == id, orElse: () => standard);
 }
@@ -87,75 +79,31 @@ Color _sunk(Du du) => du.sunk;
 Color _ink(Du du) => du.ink;
 Color _ground(Du du) => du.bg;
 
-/// Paper's shapes with a face of its own: soft panels, no outlines, heavy titles and figures.
-LookStyle _paperStyle(String title, String body, {String? figures, FontWeight titles = FontWeight.w700, FontWeight numbers = FontWeight.w700, double tracking = -0.3}) => LookStyle(
-      titleFont: title, bodyFont: body, numberFont: figures, titleWeight: titles, numberWeight: numbers,
-      titleTracking: tracking, radius: 20, controlRadius: 14, borderWidth: 0, shadow: ShadowKind.soft,
-      barHeight: 12, barRadius: 999, roundCaps: true, hero: HeroKind.berries,
-    );
-
-final paper = Look(
-  id: 'paper',
-  name: 'Paper',
-  blurb: 'Bricolage Grotesque, set heavier than before',
-  brightness: Brightness.light,
-  light: _paperDu,
-  style: _paperStyle('Bricolage Grotesque', 'Instrument Sans', numbers: FontWeight.w800),
-  navIndicator: _sunk,
-  navSelected: _ink,
+/// Soft panels, no outlines, Geist with heavy titles and figures.
+const _crispStyle = LookStyle(
+  titleFont: 'Geist', bodyFont: 'Geist', titleWeight: FontWeight.w700, numberWeight: FontWeight.w700,
+  titleTracking: -0.5, radius: 20, controlRadius: 14, borderWidth: 0, shadow: ShadowKind.soft,
+  barHeight: 12, barRadius: 999, roundCaps: true, hero: HeroKind.berries,
 );
 
-final crisp = Look(
+const crisp = Look(
   id: 'crisp',
   name: 'Crisp',
-  blurb: 'Geist: precise and even',
+  blurb: 'Warm white, near-black ink, Geist',
   brightness: Brightness.light,
   light: _paperDu,
-  style: _paperStyle('Geist', 'Geist', tracking: -0.5),
+  style: _crispStyle,
   navIndicator: _sunk,
   navSelected: _ink,
 );
 
-final round = Look(
-  id: 'round',
-  name: 'Round',
-  blurb: 'Plus Jakarta Sans: rounder, heavy figures',
-  brightness: Brightness.light,
-  light: _paperDu,
-  style: _paperStyle('Plus Jakarta Sans', 'Plus Jakarta Sans', numbers: FontWeight.w800, tracking: -0.5),
-  navIndicator: _sunk,
-  navSelected: _ink,
-);
-
-final press = Look(
-  id: 'press',
-  name: 'Press',
-  blurb: 'Archivo: a sturdy grotesque',
-  brightness: Brightness.light,
-  light: _paperDu,
-  style: _paperStyle('Archivo', 'Archivo', numbers: FontWeight.w800, tracking: -0.4),
-  navIndicator: _sunk,
-  navSelected: _ink,
-);
-
-final meter = Look(
-  id: 'meter',
-  name: 'Meter',
-  blurb: 'Geist, with every figure in Geist Mono',
-  brightness: Brightness.light,
-  light: _paperDu,
-  style: _paperStyle('Geist', 'Geist', figures: 'Geist Mono', numbers: FontWeight.w600, tracking: -0.5),
-  navIndicator: _sunk,
-  navSelected: _ink,
-);
-
-final night = Look(
+const night = Look(
   id: 'night',
   name: 'Night',
   blurb: 'Crisp on warm black',
   brightness: Brightness.dark,
   light: _nightDu,
-  style: _paperStyle('Geist', 'Geist', tracking: -0.5),
+  style: _crispStyle,
   navBackground: _ground,
   navIndicator: _sunk,
   navSelected: _ink,
