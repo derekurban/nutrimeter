@@ -13,6 +13,8 @@ Future<void> main() async {
   await ApiKeys.load();
   // The food categories, for filing a product read before the catalogue has synced.
   await BundledTaxonomy.load();
+  // Its pictures, so they show without a download (and offline).
+  await BundledArt.load();
   runApp(NutrimeterApp(state: state));
   // Parse the ~6,000-food CNF off the startup path; the picker shows it once ready.
   state.loadCnf();

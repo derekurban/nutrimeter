@@ -13,6 +13,7 @@ import 'package:nutrimeter/services/backend.dart';
 import 'package:nutrimeter/services/backend_config.dart';
 import 'package:nutrimeter/services/catalogue.dart';
 import 'package:nutrimeter/services/submissions.dart';
+import 'package:nutrimeter/services/taxonomy_asset.dart';
 import 'package:nutrimeter/ui/app.dart';
 import 'package:nutrimeter/ui/food_detail.dart';
 import 'package:nutrimeter/ui/review.dart';
@@ -754,6 +755,23 @@ void main() {
       expect(Backend.due(last: now.subtract(const Duration(minutes: 1)), now: now, awaitingReview: true), isTrue);
       expect(Backend.due(last: now.subtract(const Duration(seconds: 5)), now: now, awaitingReview: true), isFalse,
           reason: 'not again while the camera sends the app to the background and back');
+    });
+  });
+
+  group('bundled pictures', () {
+    test('every picture id in the index has its file, and a taxonomy URL finds it', () {
+      final index = (jsonDecode(File('assets/art/index.json').readAsStringSync()) as Map).cast<String, String>();
+      expect(index, isNotEmpty);
+      for (final file in index.values.toSet()) {
+        expect(File('assets/art/$file').existsSync(), isTrue, reason: file);
+      }
+      BundledArt.files = index;
+      final (id, file) = (index.keys.first, index.values.first);
+      expect(BundledArt.assetFor(BackendConfig.prod.publicUrl('taxonomy-art', 'art/$id.webp')), 'assets/art/$file');
+      expect(BundledArt.assetFor(BackendConfig.dev.publicUrl('taxonomy-art', 'art/00000000-0000-0000-0000-000000000000.webp')), isNull,
+          reason: 'accepted after the build: from the network');
+      expect(BundledArt.assetFor('https://images.openfoodfacts.org/x/front.jpg'), isNull);
+      BundledArt.files = const {};
     });
   });
 }
