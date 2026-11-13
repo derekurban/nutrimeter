@@ -20,7 +20,7 @@ In-app updates and links are two small method channels in `MainActivity.kt`.
 | `lib/services/backend.dart` | Supabase from the app's side: start-up, sign-in, catalogue sync on launch and resume (every resume while products wait for review), publishing accepted label reviews |
 | `lib/services/catalogue.dart` | The published catalogue: download, offline cache, record → `Food`, aliases, search |
 | `lib/services/submissions.dart` | Label photos on the phone, a label review's idempotent upload, the submissions history with statuses |
-| `lib/services/taxonomy_asset.dart` | The food taxonomy bundled as `assets/taxonomy.json` (identical in dev, staging and prod, without pictures), used until the taxonomy first syncs; regenerate it if a migration changes the categories. The taxonomy and its pictures sync without an account (`20261107130000_public_taxonomy.sql`), so pictures show signed out |
+| `lib/services/taxonomy_asset.dart` | The food taxonomy bundled as `assets/taxonomy.json` (identical in dev, staging and prod, without pictures), used until the taxonomy first syncs; regenerate it if a migration changes the categories. The taxonomy and its pictures sync without an account (`20261107130000_public_taxonomy.sql`), so pictures show signed out. `BundledArt` draws the pictures from `assets/art/` (`python -I tool/gen_art.py` before a release; about 2 MB), so they show offline and only pictures accepted after the build are downloaded |
 | `lib/services/llm.dart` | Anthropic Messages API (streamed) and OpenAI Responses API over plain HTTP: photos in, schema-constrained JSON out, tokens and cost |
 | `lib/services/reading_settings.dart` | API keys (Android Keystore), which model does each reading step, the confidence bar, spend |
 | `lib/services/label_pipeline.dart` | Runs a label review on the phone, step by step, saved after each step |
@@ -64,13 +64,14 @@ Two flavours on one dimension, so a try-out never touches the real install:
 
 | Flavour | Application id | Name | Icon |
 |---|---|---|---|
-| `prod` | `app.nutrimeter` | Nutrimeter | green bracket |
-| `staging` | `app.nutrimeter.staging` | Nutrimeter Staging | amber bracket |
+| `prod` | `app.nutrimeter` | Nutrimeter | berries on cream |
+| `staging` | `app.nutrimeter.staging` | Nutrimeter Staging | berries on amber |
 
 Every `flutter run` or `flutter build apk` needs `--flavor prod|staging`. Debug builds add `.dev` to the id ("Nutrimeter
 Dev"), so a dev loop on a phone installs beside the real app instead of over it. The launcher icons (Android adaptive
-and legacy, iOS) and `tool/icon.svg` are drawn by `python -I tool/icons.py`; change the mark there. The mark is the
-design system's app sub-logo, like easyday's: the two brackets kept exactly, an apple in place of the scribble.
+and legacy, iOS) are made by `python -I tool/icons.py` (Pillow, numpy, scipy) from one piece of artwork,
+`tool/icon-source.png`: a berry cluster on flat cream, full bleed. To change the icon, replace that file and run the
+script again.
 
 ```
 flutter build apk --release --flavor prod --target-platform android-arm64   # what CI ships, ~25 MB
