@@ -70,28 +70,8 @@ flutter:
     - assets/taxonomy.json
     # The taxonomy's pictures (tool/gen_art.py): 256 px WebPs, about 2 MB in all.
     - assets/art/
-  # The design system's type (derekurban/design-system v0.1.0, as in easyday): Albert Sans for titles, Wix Madefor
-  # Text for everything else. OFL; the licences sit beside the fonts.
+  # The app's one face (lib/ui/theme.dart): Geist, OFL, from Google Fonts; its licence sits beside it.
   fonts:
-    - family: Albert Sans
-      fonts:
-        - asset: assets/fonts/AlbertSans-300.ttf
-          weight: 300
-        - asset: assets/fonts/AlbertSans-400.ttf
-          weight: 400
-        - asset: assets/fonts/AlbertSans-500.ttf
-          weight: 500
-        - asset: assets/fonts/AlbertSans-600.ttf
-          weight: 600
-    - family: Wix Madefor Text
-      fonts:
-        - asset: assets/fonts/WixMadeforText-400.ttf
-          weight: 400
-        - asset: assets/fonts/WixMadeforText-500.ttf
-          weight: 500
-        - asset: assets/fonts/WixMadeforText-600.ttf
-          weight: 600
-    # The facelift theme's face (lib/ui/looks.dart, Crisp): Geist, OFL, from Google Fonts; its licence sits beside it.
     - family: Geist
       fonts:
         - asset: assets/fonts/Geist-400.ttf

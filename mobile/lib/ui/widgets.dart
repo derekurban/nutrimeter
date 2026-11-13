@@ -9,65 +9,56 @@ import '../logic/foods.dart';
 import '../services/taxonomy_asset.dart';
 import 'theme.dart';
 
-/// A horizontal progress bar with its percentage printed inside. Gray while it fills; the accent once a target is met;
-/// danger once a limit is passed ([over]). A limit ([isLimit]) stays gray until then. [color] fills it instead of gray
-/// while it fills, for looks that colour the macros. The look decides its shape: a filled track, or one in an inked
-/// outline.
+/// A horizontal progress bar. A target fills in [color] (gray by default) and turns the accent once it is met; a
+/// limit ([isLimit]) stays as it is until it is passed ([over]), then turns danger. A bar 12 or taller prints its
+/// percentage inside; a thinner one prints it beside itself, unless [showLabel] is off because the figures sit next
+/// to the bar already.
 class ProgressBar extends StatelessWidget {
-  const ProgressBar({super.key, required this.fraction, this.isLimit = false, this.over = false, this.height, this.color, this.showLabel = true});
+  const ProgressBar({super.key, required this.fraction, this.isLimit = false, this.over = false, this.height = 12, this.color, this.showLabel = true});
 
   final double fraction;
   final bool isLimit;
   final bool over;
-  final double? height;
+  final double height;
   final Color? color;
-
-  /// Print the percentage (beside a thin bar, inside a thick one). Off where the figures sit next to the bar already.
   final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
-    final du = context.du, s = context.look;
-    final h = height ?? s.barHeight;
+    final du = context.du;
     final pct = fraction.isFinite ? (fraction * 100).round() : 0;
     final met = !isLimit && pct >= 100; // as printed, so "100%" is never gray
     final fill = over ? du.danger : met ? du.accentStrong : (color ?? du.dataNeutral);
     final width = fraction.isFinite ? fraction.clamp(0.0, 1.0) : 0.0;
-    final label = TextStyle(fontFamily: s.bodyFont, fontSize: 10.5, height: 1, letterSpacing: 0, fontWeight: FontWeight.w600, fontFeatures: tabular);
-    // The percentage sits on the fill once the fill is dark enough to need light text.
-    final onFill = fraction >= 0.5 && ThemeData.estimateBrightnessForColor(fill) == Brightness.dark;
-    final outlined = s.bar == BarKind.outlined;
-    final radius = BorderRadius.circular(s.barRadius.clamp(0, h / 2));
+    final label = TextStyle(fontFamily: appFont, fontSize: 10.5, height: 1, letterSpacing: 0, fontWeight: FontWeight.w600, fontFeatures: tabular);
+    // Past halfway the percentage sits on the fill, so it takes whichever of white and near-black reads on it (the
+    // calories' bar is ink: dark by day, light at night); before that it sits on the track.
+    final onFill = fraction >= 0.5;
+    final labelColor = !onFill ? du.ink : ThemeData.estimateBrightnessForColor(fill) == Brightness.dark ? Colors.white : const Color(0xFF151314);
     final bar = ClipRRect(
-      borderRadius: radius,
+      borderRadius: BorderRadius.circular(height / 2),
       child: SizedBox(
-        height: h,
+        height: height,
         child: Stack(fit: StackFit.expand, children: [
           ColoredBox(color: context.track),
           FractionallySizedBox(alignment: Alignment.centerLeft, widthFactor: width, child: ColoredBox(color: fill)),
-          if (h >= 12 && showLabel) Center(child: Text('$pct%', style: label.copyWith(color: onFill ? Colors.white : du.ink))),
+          if (height >= 12 && showLabel) Center(child: Text('$pct%', style: label.copyWith(color: labelColor))),
         ]),
       ),
     );
     return Semantics(
       value: '$pct%',
-      child: outlined
-          ? DecoratedBox(
-              position: DecorationPosition.foreground,
-              decoration: BoxDecoration(borderRadius: radius, border: Border.all(color: du.ink, width: s.borderWidth)),
-              child: bar)
-          : h >= 12 || !showLabel
-              ? bar
-              : Row(children: [
-                  Expanded(child: bar),
-                  SizedBox(width: 40, child: Text('$pct%', textAlign: TextAlign.right, style: label.copyWith(color: over ? du.danger : du.inkSecondary))),
-                ]),
+      child: height >= 12 || !showLabel
+          ? bar
+          : Row(children: [
+              Expanded(child: bar),
+              SizedBox(width: 40, child: Text('$pct%', textAlign: TextAlign.right, style: label.copyWith(color: over ? du.danger : du.inkSecondary))),
+            ]),
     );
   }
 }
 
-/// A surface in the look's own shape: its fill, corner, outline (hairline or ink) and shadow (none, soft, or
-/// hard). Stands in for [Card] everywhere.
+/// A surface: a soft panel with no outline. Stands in for [Card] everywhere.
 class Panel extends StatelessWidget {
   const Panel({super.key, required this.child, this.clipBehavior = Clip.none, this.color});
 
@@ -77,18 +68,9 @@ class Panel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(context.look.radius);
-    final deco = panelDecoration(context, color: color);
     Widget body = Material(type: MaterialType.transparency, child: child);
-    if (clipBehavior != Clip.none) body = ClipRRect(borderRadius: radius, clipBehavior: clipBehavior, child: body);
-    return DecoratedBox(
-      decoration: BoxDecoration(color: deco.color, borderRadius: radius, boxShadow: deco.boxShadow),
-      child: DecoratedBox(
-        position: DecorationPosition.foreground,
-        decoration: BoxDecoration(borderRadius: radius, border: deco.border),
-        child: body,
-      ),
-    );
+    if (clipBehavior != Clip.none) body = ClipRRect(borderRadius: BorderRadius.circular(panelRadius), clipBehavior: clipBehavior, child: body);
+    return DecoratedBox(decoration: panelDecoration(context, color: color), child: body);
   }
 }
 
@@ -113,20 +95,19 @@ class Ring extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox.square(
         dimension: size,
         child: CustomPaint(
-          painter: _RingPainter(segments, total, stroke, context.track, context.look.roundCaps),
+          painter: _RingPainter(segments, total, stroke, context.track),
           child: Center(child: child),
         ),
       );
 }
 
 class _RingPainter extends CustomPainter {
-  _RingPainter(this.segments, this.total, this.stroke, this.track, this.round);
+  _RingPainter(this.segments, this.total, this.stroke, this.track);
 
   final List<RingSegment> segments;
   final double total;
   final double stroke;
   final Color track;
-  final bool round;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -135,7 +116,7 @@ class _RingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke;
     canvas.drawArc(rect, 0, math.pi * 2, false, paint..color = track);
-    if (round) paint.strokeCap = StrokeCap.round;
+    paint.strokeCap = StrokeCap.round;
     if (total <= 0) return;
     var start = -math.pi / 2;
     var used = 0.0;
@@ -149,58 +130,10 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingPainter old) => old.total != total || old.segments != segments || old.track != track || old.round != round;
+  bool shouldRepaint(_RingPainter old) => old.total != total || old.segments != segments || old.track != track;
 }
-
-List<({String key, double kcal})> macroEnergy(Nutrients n) =>
-    [for (final m in macroKeys) (key: m, kcal: (n[m] ?? 0) * kcalPerGram[m]!)];
 
 const macroLabels = {'protein': 'Protein', 'carbs': 'Carbs', 'fat': 'Fat'};
-
-/// Energy in the middle, the macro split around it, and a legend.
-class MacroDonut extends StatelessWidget {
-  const MacroDonut({super.key, required this.nutrients, this.size = 96});
-
-  final Nutrients nutrients;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final parts = macroEnergy(nutrients);
-    final total = parts.fold(0.0, (a, p) => a + p.kcal);
-    return Row(children: [
-      Ring(
-        size: size,
-        stroke: size / 7,
-        total: total,
-        segments: [for (final p in parts) RingSegment(p.kcal, context.du.macro(p.key))],
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(formatAmount(nutrients['energy'] ?? 0, 'kcal'), style: context.text.titleLarge?.copyWith(fontWeight: FontWeight.w300, fontFeatures: tabular)),
-          Text('kcal', style: context.text.labelSmall),
-        ]),
-      ),
-      const SizedBox(width: 18),
-      Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          for (final p in parts)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(children: [
-                Container(width: 10, height: 10, decoration: BoxDecoration(color: context.du.macro(p.key), borderRadius: BorderRadius.circular(3))),
-                const SizedBox(width: 8),
-                Expanded(child: Text(macroLabels[p.key]!)),
-                Text(total > 0 ? '${(p.kcal / total * 100).round()}%' : '0%', style: const TextStyle(fontWeight: FontWeight.w500, fontFeatures: tabular)),
-                SizedBox(
-                  width: 64,
-                  child: Text('${formatAmount(nutrients[p.key] ?? 0)} g', textAlign: TextAlign.right, style: TextStyle(color: context.muted, fontFeatures: tabular)),
-                ),
-              ]),
-            ),
-        ]),
-      ),
-    ]);
-  }
-}
 
 /// A catalogue food's picture (its category's, else its subgroup's, else its group's; or a product photo saved by an
 /// older version), an initial on a sunk tile otherwise. Taxonomy pictures come from the app's bundle when it has
@@ -215,8 +148,8 @@ class FoodThumb extends StatelessWidget {
   Widget build(BuildContext context) {
     final f = food;
     final url = f?.imageUrl;
-    final du = context.du, s = context.look;
-    final corner = BorderRadius.circular(s.roundThumbs ? size / 2 : s.radius == 0 ? 0 : math.min(8, s.radius));
+    final du = context.du;
+    final corner = BorderRadius.circular(math.min(10, size / 4));
     final letter = Container(
       width: size,
       height: size,
@@ -224,7 +157,7 @@ class FoodThumb extends StatelessWidget {
       decoration: BoxDecoration(color: du.sunk, borderRadius: corner),
       child: Text(
         (f?.name.isNotEmpty ?? false) ? f!.name.characters.first.toUpperCase() : '?',
-        style: TextStyle(fontFamily: s.titleFont, fontSize: size * 0.42, fontWeight: FontWeight.w500, color: du.inkSecondary),
+        style: TextStyle(fontFamily: appFont, fontSize: size * 0.42, fontWeight: FontWeight.w600, color: du.inkSecondary),
       ),
     );
     if (url == null) return letter;
@@ -254,7 +187,7 @@ class SourceBadge extends StatelessWidget {
     final du = context.du;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(color: du.surface, borderRadius: BorderRadius.circular(context.look.radius == 0 ? 0 : 999), border: Border.all(color: du.line, width: 0.6)),
+      decoration: BoxDecoration(color: du.surface, borderRadius: BorderRadius.circular(999), border: Border.all(color: du.line, width: 0.6)),
       child: Text(source.short, style: context.text.labelSmall?.copyWith(fontSize: 10.5, letterSpacing: 0, color: du.inkSecondary)),
     );
   }

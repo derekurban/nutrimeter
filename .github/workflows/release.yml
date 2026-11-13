@@ -11,22 +11,18 @@
 # Checks (analyze, test) and the APK build run side by side; a release waits for both. A failing check cancels the
 # run, so a broken build is never finished or published. A pull request into staging or main runs both without
 # releasing (the APK is kept as a run artifact); a push to dev runs only the checks.
-#
-# A push to playground builds the playground flavour (app.nutrimeter.playground, "Nutrimeter Playground": the facelift
-# looks under trial, lib/ui/playground.dart) and publishes it as a prerelease carrying nutrimeter-playground.apk, which
-# installed playground apps update themselves from. It never touches staging or prod installs.
 name: release
 
 on:
   push:
-    branches: [dev, staging, main, playground]
+    branches: [dev, staging, main]
   pull_request:
     branches: [staging, main]
 
 concurrency:
   group: release-${{ github.ref }}
   # A newer push supersedes a pull request's or dev's run; release builds always finish.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref_name == 'dev' || github.ref_name == 'playground' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref_name == 'dev' }}
 
 permissions:
   contents: read
@@ -102,11 +98,7 @@ jobs:
       - name: Version
         id: version
         run: |
-          case "$TARGET" in
-            main) flavor=prod; asset=nutrimeter.apk ;;
-            playground) flavor=playground; asset=nutrimeter-playground.apk ;;
-            *) flavor=staging; asset=nutrimeter-staging.apk ;;
-          esac
+          if [ "$TARGET" = main ]; then flavor=prod; asset=nutrimeter.apk; else flavor=staging; asset=nutrimeter-staging.apk; fi
           full="$(grep -E '^version:' pubspec.yaml | sed 's/version: *//')"
           name="${full%%+*}"
           code=$(( 100000 + GITHUB_RUN_NUMBER ))
@@ -181,6 +173,6 @@ jobs:
             echo
             git log $range --no-merges --format='- %s' | head -30
           } > "$RUNNER_TEMP/notes.md"
-          case "$FLAVOR" in prod) latest=--latest ;; playground) latest="--latest=false --prerelease" ;; *) latest=--latest=false ;; esac
+          if [ "$FLAVOR" = prod ]; then latest=--latest; else latest=--latest=false; fi
           gh release create "$TAG" "$RUNNER_TEMP/$ASSET" $latest --target "$GITHUB_SHA" \
             --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"

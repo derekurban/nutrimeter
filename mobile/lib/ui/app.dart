@@ -5,8 +5,6 @@ import '../data/store.dart';
 import '../services/backend.dart';
 import 'custom_foods.dart';
 import 'diary.dart';
-import 'looks.dart';
-import 'playground.dart';
 import 'recipes.dart';
 import 'settings.dart';
 import 'theme.dart';
@@ -17,24 +15,16 @@ class NutrimeterApp extends StatelessWidget {
 
   final AppState state;
 
-  static final _messenger = GlobalKey<ScaffoldMessengerState>();
-
   @override
   Widget build(BuildContext context) => AppScope(
         state: state,
-        // The look: the default, or in playground mode the one picked there (lib/ui/looks.dart).
-        child: ValueListenableBuilder<Look>(
-          valueListenable: Playground.current,
-          builder: (context, look, _) => MaterialApp(
-            title: 'Nutrimeter',
-            debugShowCheckedModeBanner: false,
-            scaffoldMessengerKey: _messenger,
-            theme: buildTheme(Brightness.light, look),
-            darkTheme: buildTheme(Brightness.dark, look),
-            themeMode: look.mode,
-            builder: (context, child) => PlaygroundLayer(messenger: _messenger, child: child!),
-            home: const AutoUpdater(child: HomeShell()),
-          ),
+        child: MaterialApp(
+          title: 'Nutrimeter',
+          debugShowCheckedModeBanner: false,
+          // One design in two lights; the phone's setting picks.
+          theme: buildTheme(Brightness.light),
+          darkTheme: buildTheme(Brightness.dark),
+          home: const AutoUpdater(child: HomeShell()),
         ),
       );
 }

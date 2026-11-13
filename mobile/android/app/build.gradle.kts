@@ -54,14 +54,6 @@ android {
             versionNameSuffix = "-staging"
             resValue("string", "app_name", "Nutrimeter Staging")
         }
-        // The facelift playground: the looks under trial (lib/ui/playground.dart), beside the real app, on the dev
-        // backend. Released from the playground branch.
-        create("playground") {
-            dimension = "env"
-            applicationIdSuffix = ".playground"
-            versionNameSuffix = "-playground"
-            resValue("string", "app_name", "Nutrimeter Playground")
-        }
     }
 
     signingConfigs {

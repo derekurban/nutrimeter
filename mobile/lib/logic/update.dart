@@ -27,11 +27,7 @@ class ReleaseInfo {
 }
 
 /// The asset a flavour installs.
-String assetFor(String? flavor) => switch (flavor) {
-      'staging' => 'nutrimeter-staging.apk',
-      'playground' => 'nutrimeter-playground.apk',
-      _ => 'nutrimeter.apk',
-    };
+String assetFor(String? flavor) => flavor == 'staging' ? 'nutrimeter-staging.apk' : 'nutrimeter.apk';
 
 /// "v0.1.5", "0.1.5+19" or "0.1.5-staging" -> [0, 1, 5]. Anything unparsable is an empty list.
 List<int> versionParts(String v) {
@@ -55,10 +51,9 @@ int compareVersions(String a, String b) {
   return 0;
 }
 
-/// The build number in a CI tag: "v0.1.7-staging.100042", "v0.1.7-prod.100043" or "v0.1.7-playground.100044" -> the
-/// number; null otherwise.
+/// The build number in a CI tag: "v0.1.7-staging.100042" or "v0.1.7-prod.100043" -> the number; null otherwise.
 int? tagBuild(String tag) {
-  final m = RegExp(r'-(?:staging|prod|playground)\.(\d+)$').firstMatch(tag.trim());
+  final m = RegExp(r'-(?:staging|prod)\.(\d+)$').firstMatch(tag.trim());
   return m == null ? null : int.tryParse(m.group(1)!);
 }
 
@@ -120,9 +115,9 @@ ReleaseInfo? _release(dynamic j) {
   );
 }
 
-/// The build as one line: "0.1.7 (build 100042) · staging" (or · playground), or "0.1.7 (build 100042)" for prod.
+/// The build as one line: "0.1.7 (build 100042) · staging", or "0.1.7 (build 100042)" for prod.
 String buildLine(String versionName, int versionCode, String flavor) =>
-    '${versionParts(versionName).join('.')}${versionCode > 0 ? ' (build $versionCode)' : ''}${flavor == 'prod' || flavor.isEmpty ? '' : ' · $flavor'}';
+    '${versionParts(versionName).join('.')}${versionCode > 0 ? ' (build $versionCode)' : ''}${flavor == 'staging' ? ' · staging' : ''}';
 
 /// The phone as one line: "Google Pixel 9 Pro · Android 16 (API 36)". The maker is left out when the model already
 /// starts with it, and missing parts are skipped.

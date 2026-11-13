@@ -5,7 +5,6 @@ import 'services/backend.dart';
 import 'services/reading_settings.dart';
 import 'services/taxonomy_asset.dart';
 import 'ui/app.dart';
-import 'ui/playground.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,8 +15,6 @@ Future<void> main() async {
   await BundledTaxonomy.load();
   // Its pictures, so they show without a download (and offline).
   await BundledArt.load();
-  // Playground mode and the look it has on (lib/ui/playground.dart).
-  await Playground.load();
   runApp(NutrimeterApp(state: state));
   // Parse the ~6,000-food CNF off the startup path; the picker shows it once ready.
   state.loadCnf();
