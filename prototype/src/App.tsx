@@ -34,7 +34,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <a className="brand" href="#/diary">
-          <img src="/favicon.svg" alt="" />
+          <img src="/favicon.png" alt="" />
           Nutrimeter
         </a>
         <nav>
