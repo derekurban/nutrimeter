@@ -49,20 +49,13 @@ buckets (calories, protein, carbs, fat) and a few **standout** nutrients the per
 tap away. Which meal a food belonged to does not matter, so outside the original layout there are no meals: one list
 of the day's food (a food is still stored with the meal for its time of day, so nothing is lost).
 
-**The layout** (`lib/ui/diary_layouts.dart`) is a top section and the day's food under it. The top section is one
-panel: the calories with a bar, a ring for each macro, and the standouts as shaded cells. Tapping it opens the full
-breakdown, and the two candidate layouts differ only in how:
-
-| Layout | Tapping the top section |
-|---|---|
-| Unfold | unfolds the breakdown inside the panel; the food moves down |
-| Sheet | slides the breakdown up as a sheet over the diary |
-| Original | (a summary, a card per meal, nutrient bars: what the app uses outside playground mode) |
-
-The **breakdown** is one cell per nutrient under Carbs, Fats, Vitamins, Minerals and Other, each alphabetical. A cell
-deepens toward the accent as its target fills and turns the full accent at 100%; a limit stays gray until it is
-passed, then danger. Tapping a cell shows its numbers and makes it a standout or not; "Choose standouts" lists them
-all. The standouts are kept with the playground's choices for now, not in the data file.
+**The layout** (`lib/ui/diary_layouts.dart`, "Meter" in the playground; "Original" is what the app uses outside it)
+is a top section and the day's food under it. The top section is one panel: the calories with a bar, a ring for each
+macro, and the standouts as bars (a name, a bar, the amount against its target). Tapping it anywhere opens the
+**nutrients page**: the standouts again, with "Choose" to change them, and then one shaded cell per nutrient under
+Carbs, Fats, Vitamins, Minerals and Other, each alphabetical. A cell deepens toward the accent as its target fills and
+turns the full accent at 100%; a limit stays gray until it is passed, then danger. Tapping a cell shows its numbers
+and makes it a standout or not. The standouts are kept with the playground's choices for now, not in the data file.
 
 **The theme** (`lib/ui/looks.dart`) is Crisp: warm white, near-black ink, the berry icon's plum, raspberry and
 lavender for the macros and leaf green for a target met as the only colour, set in Geist with heavy titles and
@@ -73,7 +66,7 @@ widgets read both, and surfaces are `Panel`s, not `Card`s, so the whole app foll
 How it got here: six looks; crosses of the two kept (Orchard, Jam), which showed that repainting one structure was
 not the answer; structure split from colour (six layouts, seven schemes: Paper kept, the shaded grid liked); the meter
 model with four arrangements and Paper in five faces (Board and Geist picked); then this arrangement, which is
-Derek's own.
+Derek's own, with the breakdown first tried unfolding in place and as a sheet before it became a page.
 
 Playground mode (`lib/ui/playground.dart`) floats a draggable berry button over the app; it opens a dock with a row of
 layout tabs and a row of theme tabs (the app stays live above it), a sample day for an empty install, and a way out.

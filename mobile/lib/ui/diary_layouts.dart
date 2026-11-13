@@ -1,20 +1,19 @@
 // The diary's body (the 2026-11 facelift, tried in playground mode). Every layout shows the same day through one
 // [DayView].
 //
-// Round five. Round four settled the model (the diary is a meter, not a meal log: four buckets, a few standout
-// nutrients the person picks, every nutrient in a shaded grid, no meals) and Derek picked Board's tiles and the Crisp
-// theme, then gave the arrangement himself: a top section with the calories, protein, carbs, fat and the standouts;
-// under it the day's food; and the full breakdown of every nutrient only when the top section is tapped. "Generally
-// speaking it should just be the diary as a start."
+// Round six. The model was settled in round four (the diary is a meter, not a meal log: four buckets, a few standout
+// nutrients the person picks, no meals) and the arrangement in round five, by Derek: a top section with the calories,
+// protein, carbs, fat and the standouts, the day's food under it, and every other nutrient only on a tap. Round five
+// tried that tap two ways (unfolding in place, a sheet); he chose a third, a page of its own, and asked for the
+// standouts as bars, not tiles.
 //
-//   stack   the original, kept for comparison (and what the app uses outside playground mode)
-//   unfold  the top section opens in place: the breakdown unfolds inside it and the food moves down
-//   sheet   the top section opens a sheet: the breakdown slides up over the diary, which stays where it was
+//   stack  the original, kept for comparison (and what the app uses outside playground mode)
+//   meter  the top section and the day's food; tapping the top section opens the nutrients page
 //
-// The two differ only in how the breakdown opens; one is meant to survive. The breakdown is outlined as Carbs, Fats,
+// The nutrients page has the standouts (with "Choose") and then every nutrient as a shaded cell under Carbs, Fats,
 // Vitamins, Minerals and Other, each alphabetical; a cell deepens toward the accent as its target fills and turns the
 // full accent at 100%, a limit stays gray until it is passed. Dropped on the way: Timeline, Wheel, Ledger (round
-// three), Buckets, Focus, Split (round four; Board became this).
+// three), Buckets, Focus, Split (round four; Board became this), Unfold and Sheet (round five).
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -32,8 +31,7 @@ import 'widgets.dart';
 
 enum DiaryLayout {
   stack('Original'),
-  unfold('Unfold'),
-  sheet('Sheet');
+  meter('Meter');
 
   const DiaryLayout(this.label);
 
@@ -71,8 +69,8 @@ class DayView {
   /// The standout nutrients, by key, in the order they were picked.
   final List<String> pinned;
 
-  /// Fires when the day or the standouts change, and [again] then gives the day as it is now: for a sheet that stays
-  /// open over the diary while they do.
+  /// Fires when the day or the standouts change, and [again] then gives the day as it is now: for the nutrients page,
+  /// which stays open over the diary while they do.
   final Listenable changes;
   final DayView Function() again;
   final Nutrients totals;
@@ -109,11 +107,10 @@ List<NutrientDef> _section(List<NutrientGroup> groups) =>
     nutrients.where((d) => !_isBucket(d) && groups.contains(d.group)).toList()..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
 
 /// The diary's list, below the app bar. The original hands over its pieces one by one, so the list builds only what
-/// is on screen, as it always did; the others are a summary and the food.
+/// is on screen, as it always did; the meter is its top section and the food.
 List<Widget> diaryBody(DiaryLayout layout, DayView v) => switch (layout) {
       DiaryLayout.stack => _stack(v),
-      DiaryLayout.unfold => [_Summary(v, sheet: false), const SizedBox(height: 12), FoodLog(v)],
-      DiaryLayout.sheet => [_Summary(v, sheet: true), const SizedBox(height: 12), FoodLog(v)],
+      DiaryLayout.meter => [_Summary(v), const SizedBox(height: 12), FoodLog(v)],
     };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -188,56 +185,87 @@ String _goalOf(DayView v, NutrientDef def) {
   return ' ${def.unit}';
 }
 
-/// One nutrient as a shaded cell: its name and its reading. [large] is a standout's: taller, with the amount too.
-/// [onTap] defaults to the nutrient's own sheet; null there leaves the cell to whatever it sits in.
+/// One nutrient as a shaded cell: its name and its reading. Tap it for its numbers.
 class _NutrientCell extends StatelessWidget {
-  const _NutrientCell(this.v, this.def, {this.large = false, this.tappable = true});
+  const _NutrientCell(this.v, this.def);
 
   final DayView v;
   final NutrientDef def;
-  final bool large, tappable;
 
   @override
   Widget build(BuildContext context) {
     final s = context.look;
     final c = _heat(context.du, v.progress(def));
     final r = _reading(v, def);
-    final body = Padding(
-      padding: EdgeInsets.symmetric(horizontal: large ? 12 : 8, vertical: large ? 10 : 6),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(def.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: context.text.labelSmall?.copyWith(fontSize: large ? 12.5 : 11, color: c.fg.withValues(alpha: 0.82), letterSpacing: 0)),
-        SizedBox(height: large ? 4 : 2),
-        Text.rich(
-          TextSpan(children: [
-            TextSpan(text: r.figure, style: TextStyle(fontFamily: s.figures, fontSize: large ? 20 : 14.5, fontWeight: FontWeight.w700, fontFeatures: tabular)),
-            TextSpan(text: r.rest, style: TextStyle(fontFamily: s.bodyFont, fontSize: large ? 13 : 11.5, fontWeight: FontWeight.w500)),
-          ]),
-          maxLines: 1,
-          overflow: TextOverflow.clip,
-          style: TextStyle(height: 1.1, color: c.fg),
-        ),
-        // the amount under the share; a nutrient with no target prints its amount above, so this line says so and
-        // keeps the cell as tall as its neighbours
-        if (large) ...[
-          const SizedBox(height: 3),
-          Text(
-            v.progress(def) == null ? 'no target' : '${formatAmount(v.totals[def.key], def.unit)}${_goalOf(v, def)}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: context.text.bodySmall?.copyWith(color: c.fg.withValues(alpha: 0.82), fontFeatures: tabular),
-          ),
-        ],
-      ]),
-    );
     return Material(
       color: c.bg,
-      borderRadius: BorderRadius.circular(math.min(large ? 14 : 8, s.radius)),
+      borderRadius: BorderRadius.circular(math.min(8, s.radius)),
       clipBehavior: Clip.antiAlias,
-      child: tappable ? InkWell(onTap: () => showNutrient(context, v, def), child: body) : body,
+      child: InkWell(
+        onTap: () => showNutrient(context, v, def),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(def.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: context.text.labelSmall?.copyWith(color: c.fg.withValues(alpha: 0.82), letterSpacing: 0)),
+            const SizedBox(height: 2),
+            Text.rich(
+              TextSpan(children: [
+                TextSpan(text: r.figure, style: TextStyle(fontFamily: s.figures, fontSize: 14.5, fontWeight: FontWeight.w700, fontFeatures: tabular)),
+                TextSpan(text: r.rest, style: TextStyle(fontFamily: s.bodyFont, fontSize: 11.5, fontWeight: FontWeight.w500)),
+              ]),
+              maxLines: 1,
+              overflow: TextOverflow.clip,
+              style: TextStyle(height: 1.1, color: c.fg),
+            ),
+          ]),
+        ),
+      ),
     );
+  }
+}
+
+/// The standouts as bars: a name, a bar and the amount against its target on each line. The bar is a soft accent
+/// while a target fills and the full accent once it is met; gray toward a limit and danger past it. A nutrient with
+/// neither has no bar, only its amount. [tappable] rows open the nutrient's own sheet.
+class StandoutBars extends StatelessWidget {
+  const StandoutBars(this.v, {super.key, this.tappable = false});
+
+  final DayView v;
+  final bool tappable;
+
+  @override
+  Widget build(BuildContext context) {
+    final du = context.du;
+    return Column(children: [
+      for (final def in [for (final k in v.pinned) ?nutrientByKey[k]])
+        InkWell(
+          onTap: tappable ? () => showNutrient(context, v, def) : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: Row(children: [
+              SizedBox(width: 96, child: Text(def.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w600))),
+              Expanded(
+                child: switch (v.progress(def)) {
+                  final p? => ProgressBar(
+                      fraction: p.fraction,
+                      isLimit: p.isLimit,
+                      over: p.over,
+                      color: p.isLimit ? null : Color.lerp(du.sunk, du.accentStrong, 0.5),
+                      height: 10,
+                      showLabel: false,
+                    ),
+                  null => const SizedBox.shrink(),
+                },
+              ),
+              SizedBox(
+                width: 132,
+                child: Text('${formatAmount(v.totals[def.key], def.unit)}${_goalOf(v, def)}',
+                    textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: context.text.bodySmall?.copyWith(fontFeatures: tabular, color: du.ink)),
+              ),
+            ]),
+          ),
+        ),
+    ]);
   }
 }
 
@@ -347,8 +375,7 @@ void choosePinned(BuildContext context, DayView v) {
   );
 }
 
-/// The full breakdown: every nutrient as a cell, under the outline's headings. Tap one for its numbers and to make
-/// it a standout; "Choose standouts" lists them all.
+/// Every nutrient as a cell, under the outline's headings. Tap one for its numbers and to make it a standout.
 class Breakdown extends StatelessWidget {
   const Breakdown(this.v, {super.key});
 
@@ -358,45 +385,46 @@ class Breakdown extends StatelessWidget {
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         for (final (title, groups) in _outline)
           if (_section(groups) case final defs when defs.isNotEmpty) ...[
-            Padding(padding: const EdgeInsets.fromLTRB(2, 14, 2, 8), child: Text(title, style: _label(context))),
+            SectionTitle(title),
             _cells(3, [for (final d in defs) _NutrientCell(v, d)]),
           ],
-        const SizedBox(height: 10),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () => choosePinned(context, v),
-            icon: const Icon(LucideIcons.slidersHorizontal, size: 16),
-            label: const Text('Choose standouts'),
-          ),
-        ),
       ]);
 }
 
-/// The breakdown as a sheet over the diary. It follows the day while it is open: a standout picked in it shows at once.
-void showBreakdown(BuildContext context, DayView v) => showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => ListenableBuilder(
-        listenable: v.changes,
-        builder: (ctx, _) {
-          final now = v.again();
-          return SizedBox(
-            height: MediaQuery.sizeOf(ctx).height * 0.88,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Every nutrient', style: ctx.text.headlineMedium),
-                  Text('Share of your target today. Tap one for its numbers.', style: ctx.text.bodySmall),
-                ]),
+/// The nutrients page, opened from the diary's top section: the standouts, with "Choose" to change them, and then
+/// every nutrient. It follows the day while it is open, so a standout picked on it shows at once.
+class NutrientsPage extends StatelessWidget {
+  const NutrientsPage(this.v, {super.key});
+
+  final DayView v;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Nutrients')),
+        body: ListenableBuilder(
+          listenable: v.changes,
+          builder: (context, _) {
+            final now = v.again();
+            return ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 48), children: [
+              SectionTitle(
+                'Standouts',
+                trailing: TextButton.icon(
+                  onPressed: () => choosePinned(context, now),
+                  icon: const Icon(LucideIcons.slidersHorizontal, size: 16),
+                  label: const Text('Choose'),
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact, minimumSize: const Size(0, 32)),
+                ),
               ),
-              Expanded(child: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 28), child: Breakdown(now))),
-            ]),
-          );
-        },
-      ),
-    );
+              if (now.pinned.isEmpty)
+                Text('None picked. Choose the nutrients you want on the diary, or tap any cell below.', style: context.text.bodySmall)
+              else
+                Panel(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: StandoutBars(now, tappable: true))),
+              Breakdown(now),
+            ]);
+          },
+        ),
+      );
+}
 
 /// The day's food as one list, with no meals: what was logged, in the order it was, and a way to add more.
 class FoodLog extends StatelessWidget {
@@ -434,100 +462,75 @@ class FoodLog extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The top section: the calories, a ring for each macro, and the standouts, in one panel. Tapping it opens the full
-// breakdown: unfolded inside the panel, or as a sheet over the diary.
+// The top section: the calories, a ring for each macro, and the standouts as bars, in one panel. Tapping it anywhere
+// opens the nutrients page.
 
-class _Summary extends StatefulWidget {
-  const _Summary(this.v, {required this.sheet});
+class _Summary extends StatelessWidget {
+  const _Summary(this.v);
 
   final DayView v;
 
-  /// The breakdown opens as a sheet; otherwise it unfolds in the panel.
-  final bool sheet;
-
-  @override
-  State<_Summary> createState() => _SummaryState();
-}
-
-class _SummaryState extends State<_Summary> {
-  bool _open = false;
-
   @override
   Widget build(BuildContext context) {
-    final v = widget.v, du = context.du, d = v.figures;
-    final standouts = [for (final k in v.pinned) ?nutrientByKey[k]];
+    final du = context.du, d = v.figures;
     final left = d.remaining;
-    void toggle() => widget.sheet ? showBreakdown(context, v) : setState(() => _open = !_open);
     return Panel(
       clipBehavior: Clip.antiAlias,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        // Everything above the breakdown is one thing to tap.
-        InkWell(
-          onTap: toggle,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(thousands(d.consumed), style: _figure(context, 46)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text('of ${thousands(d.target)} kcal', style: context.text.bodySmall?.copyWith(fontFeatures: tabular)),
-                  ),
-                ),
-                Padding(
+      child: InkWell(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => NutrientsPage(v))),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(thousands(d.consumed), style: _figure(context, 46)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Padding(
                   padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(left >= 0 ? '${thousands(left)} left' : '${thousands(-left)} over',
-                      style: context.text.titleMedium?.copyWith(color: left >= 0 ? du.accentText : du.danger, fontWeight: FontWeight.w600, fontFeatures: tabular)),
+                  child: Text('of ${thousands(d.target)} kcal', style: context.text.bodySmall?.copyWith(fontFeatures: tabular)),
                 ),
-              ]),
-              const SizedBox(height: 12),
-              ProgressBar(fraction: d.fraction, color: du.ink, height: 18),
-              const SizedBox(height: 18),
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                for (final m in d.macros)
-                  Expanded(
-                    child: Column(children: [
-                      Ring(
-                        size: 72,
-                        stroke: 9,
-                        total: math.max(m.target, m.grams),
-                        segments: [RingSegment(m.grams, (ratio(m.grams, m.target) * 100).round() >= 100 ? du.accentStrong : du.macro(m.key))],
-                        child: Text('${(ratio(m.grams, m.target) * 100).round()}%',
-                            style: TextStyle(fontFamily: context.look.figures, fontSize: 15, fontWeight: FontWeight.w700, color: du.ink, fontFeatures: tabular)),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(macroLabels[m.key]!, style: context.text.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
-                      Text('${formatAmount(m.grams)} / ${formatAmount(m.target)} g', style: context.text.bodySmall?.copyWith(fontFeatures: tabular)),
-                    ]),
-                  ),
-              ]),
-              if (standouts.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                // not tappable themselves here: a tap anywhere on the section opens the breakdown
-                _cells(2, [for (final def in standouts) _NutrientCell(v, def, large: true, tappable: false)], gap: 8),
-              ],
-              const SizedBox(height: 6),
+              ),
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(children: [
-                  Expanded(child: Text(_open ? 'Hide the breakdown' : 'Every nutrient', style: context.text.labelLarge?.copyWith(color: du.accentText, fontWeight: FontWeight.w600))),
-                  Icon(widget.sheet ? LucideIcons.chevronRight : (_open ? LucideIcons.chevronUp : LucideIcons.chevronDown), size: 18, color: du.accentText),
-                ]),
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(left >= 0 ? '${thousands(left)} left' : '${thousands(-left)} over',
+                    style: context.text.titleMedium?.copyWith(color: left >= 0 ? du.accentText : du.danger, fontWeight: FontWeight.w600, fontFeatures: tabular)),
               ),
             ]),
-          ),
+            const SizedBox(height: 12),
+            ProgressBar(fraction: d.fraction, color: du.ink, height: 18),
+            const SizedBox(height: 18),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              for (final m in d.macros)
+                Expanded(
+                  child: Column(children: [
+                    Ring(
+                      size: 72,
+                      stroke: 9,
+                      total: math.max(m.target, m.grams),
+                      segments: [RingSegment(m.grams, (ratio(m.grams, m.target) * 100).round() >= 100 ? du.accentStrong : du.macro(m.key))],
+                      child: Text('${(ratio(m.grams, m.target) * 100).round()}%',
+                          style: TextStyle(fontFamily: context.look.figures, fontSize: 15, fontWeight: FontWeight.w700, color: du.ink, fontFeatures: tabular)),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(macroLabels[m.key]!, style: context.text.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+                    Text('${formatAmount(m.grams)} / ${formatAmount(m.target)} g', style: context.text.bodySmall?.copyWith(fontFeatures: tabular)),
+                  ]),
+                ),
+            ]),
+            if (v.pinned.isNotEmpty) ...[
+              Padding(padding: const EdgeInsets.only(top: 16, bottom: 6), child: Divider(color: du.line)),
+              StandoutBars(v),
+            ],
+            Padding(
+              padding: const EdgeInsets.only(top: 8, bottom: 8),
+              child: Row(children: [
+                Expanded(child: Text('All nutrients', style: context.text.labelLarge?.copyWith(color: du.accentText, fontWeight: FontWeight.w600))),
+                Icon(LucideIcons.chevronRight, size: 18, color: du.accentText),
+              ]),
+            ),
+          ]),
         ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.topCenter,
-          child: _open && !widget.sheet
-              ? Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 12), child: Breakdown(v))
-              : const SizedBox(width: double.infinity),
-        ),
-      ]),
+      ),
     );
   }
 }
