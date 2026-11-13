@@ -64,13 +64,14 @@ Two flavours on one dimension, so a try-out never touches the real install:
 
 | Flavour | Application id | Name | Icon |
 |---|---|---|---|
-| `prod` | `app.nutrimeter` | Nutrimeter | green bracket |
-| `staging` | `app.nutrimeter.staging` | Nutrimeter Staging | amber bracket |
+| `prod` | `app.nutrimeter` | Nutrimeter | berries on cream |
+| `staging` | `app.nutrimeter.staging` | Nutrimeter Staging | berries on amber |
 
 Every `flutter run` or `flutter build apk` needs `--flavor prod|staging`. Debug builds add `.dev` to the id ("Nutrimeter
 Dev"), so a dev loop on a phone installs beside the real app instead of over it. The launcher icons (Android adaptive
-and legacy, iOS) and `tool/icon.svg` are drawn by `python -I tool/icons.py`; change the mark there. The mark is the
-design system's app sub-logo, like easyday's: the two brackets kept exactly, an apple in place of the scribble.
+and legacy, iOS) are made by `python -I tool/icons.py` (Pillow, numpy, scipy) from one piece of artwork,
+`tool/icon-source.png`: a berry cluster on flat cream, full bleed. To change the icon, replace that file and run the
+script again.
 
 ```
 flutter build apk --release --flavor prod --target-platform android-arm64   # what CI ships, ~25 MB
