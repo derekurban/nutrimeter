@@ -181,11 +181,10 @@ class _MealCard extends StatelessWidget {
       child: Panel(
         clipBehavior: Clip.antiAlias,
         child: Column(children: [
-          if (context.look.mealRule) Container(height: 8, color: context.du.ink),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 0, 0),
             child: Row(children: [
-              Text(context.look.caps ? meal.label.toUpperCase() : meal.label, style: context.text.titleLarge),
+              Text(meal.label, style: context.text.titleLarge),
               const SizedBox(width: 10),
               if (entries.isNotEmpty)
                 Expanded(
@@ -208,7 +207,6 @@ class _MealCard extends StatelessWidget {
               ),
             ]),
           ),
-          if (context.look.dashed && entries.isNotEmpty) const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: DashedRule(height: 4)),
           for (final e in entries) _EntryTile(entry: e, onTap: () => onEdit(e), onRemove: () => onRemove(e)),
           ListTile(
             dense: true,

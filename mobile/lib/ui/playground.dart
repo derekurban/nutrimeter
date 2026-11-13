@@ -349,7 +349,7 @@ class _LookTile extends StatelessWidget {
                         style: TextStyle(
                           fontFamily: st.titleFont,
                           fontWeight: st.titleWeight,
-                          fontSize: 17 * st.titleScale,
+                          fontSize: 17,
                           height: 1.2,
                           color: l.ink,
                         ),
@@ -387,7 +387,7 @@ class _LookTile extends StatelessWidget {
                       style: TextStyle(
                         fontFamily: st.titleFont,
                         fontWeight: st.titleWeight,
-                        fontSize: 19 * st.titleScale,
+                        fontSize: 19,
                         color: du.ink,
                         height: 1.2,
                       ),

@@ -61,21 +61,21 @@ class Du extends ThemeExtension<Du> {
 
 enum ShadowKind { none, soft, hard }
 
-/// How a progress bar is drawn: a filled track, a row of printed blocks, or a filled track in an inked outline.
-enum BarKind { solid, blocks, outlined }
+/// How a progress bar is drawn: a filled track, or a filled track in an inked outline.
+enum BarKind { solid, outlined }
 
-/// Which summary heads the diary (lib/ui/heroes.dart).
-enum HeroKind { classic, orchard, facts, jam, gauge, receipt, riso }
+/// Which summary heads the diary (lib/ui/heroes.dart): the default's ring card, a big figure beside the icon's
+/// berries, or the figure on a block of colour over three jars.
+enum HeroKind { classic, berries, block }
 
 /// Everything about a look that is not a colour token.
 class LookStyle extends ThemeExtension<LookStyle> {
   const LookStyle({
     this.titleFont = 'Albert Sans',
     this.bodyFont = 'Wix Madefor Text',
-    this.numberFont,
+    this.serif = false,
     this.titleWeight = FontWeight.w500,
     this.numberWeight = FontWeight.w300,
-    this.titleScale = 1,
     this.titleTracking = 0,
     this.radius = 14,
     this.controlRadius = 12,
@@ -83,27 +83,22 @@ class LookStyle extends ThemeExtension<LookStyle> {
     this.inkBorders = false,
     this.shadow = ShadowKind.none,
     this.hardOffset = const Offset(4, 4),
-    this.dashed = false,
-    this.caps = false,
-    this.labelTracking = 0,
     this.bar = BarKind.solid,
     this.barHeight = 16,
     this.barRadius = 6,
     this.roundCaps = false,
     this.roundThumbs = false,
     this.hero = HeroKind.classic,
-    this.grain = false,
-    this.mealRule = false,
+    this.heroColor,
+    this.stickerColor,
   });
 
   final String titleFont, bodyFont;
 
-  /// The face for big figures; the title face when null.
-  final String? numberFont;
+  /// The title face is a serif with an italic: small lines over figures are set in it, quietly.
+  final bool serif;
   final FontWeight titleWeight, numberWeight;
-
-  /// Wide faces (Unbounded, Space Mono) run large; titles are scaled by this.
-  final double titleScale, titleTracking;
+  final double titleTracking;
 
   /// Corner radius of panels, and of buttons and fields.
   final double radius, controlRadius;
@@ -113,15 +108,8 @@ class LookStyle extends ThemeExtension<LookStyle> {
   final bool inkBorders;
   final ShadowKind shadow;
 
-  /// A hard shadow's offset (neo-brutalist), drawn in ink.
+  /// A hard shadow's offset, drawn in ink.
   final Offset hardOffset;
-
-  /// Panels outlined with a dashed line, like a printed ticket.
-  final bool dashed;
-
-  /// Section labels in capitals, tracked out by [labelTracking].
-  final bool caps;
-  final double labelTracking;
   final BarKind bar;
   final double barHeight, barRadius;
 
@@ -132,13 +120,8 @@ class LookStyle extends ThemeExtension<LookStyle> {
   final bool roundThumbs;
   final HeroKind hero;
 
-  /// A print grain over the summary.
-  final bool grain;
-
-  /// Meal panels open with a heavy rule (a Nutrition Facts panel).
-  final bool mealRule;
-
-  String get figures => numberFont ?? titleFont;
+  /// The block summary's colour (the accent when null) and its sticker's.
+  final Color? heroColor, stickerColor;
 
   @override
   LookStyle copyWith() => this;
@@ -161,15 +144,14 @@ const bodyFont = 'Wix Madefor Text';
 /// Tabular figures, for amounts that line up or change.
 const tabular = [FontFeature.tabularFigures()];
 
-/// A panel's decoration in the current look: its fill, corner, outline and shadow. Dashed outlines are drawn by
-/// [Panel] itself.
+/// A panel's decoration in the current look: its fill, corner, outline and shadow.
 BoxDecoration panelDecoration(BuildContext context, {Color? color}) {
   final du = context.du, s = context.look;
   final outline = s.inkBorders ? du.ink : du.line;
   return BoxDecoration(
     color: color ?? du.surface,
     borderRadius: BorderRadius.circular(s.radius),
-    border: s.borderWidth > 0 && !s.dashed ? Border.all(color: outline, width: s.borderWidth) : null,
+    border: s.borderWidth > 0 ? Border.all(color: outline, width: s.borderWidth) : null,
     boxShadow: switch (s.shadow) {
       ShadowKind.none => null,
       ShadowKind.soft => [
@@ -190,11 +172,11 @@ ThemeData buildTheme(Brightness b, [Look look = Look.standard]) {
     surfaceContainerHighest: du.sunk, outline: du.line, outlineVariant: du.line, primaryContainer: du.accentSubtle, onPrimaryContainer: du.accentText,
     onSurfaceVariant: du.inkSecondary, secondaryContainer: du.accentSubtle, onSecondaryContainer: du.accentText, tertiary: du.inkTertiary, onTertiary: du.bg,
   );
-  final tf = s.titleFont, bf = s.bodyFont, k = s.titleScale;
+  final tf = s.titleFont, bf = s.bodyFont;
   TextStyle title(double size, double height, FontWeight w, double tracking) =>
-      TextStyle(fontFamily: tf, fontSize: size * k, height: height, fontWeight: w, letterSpacing: tracking * k + s.titleTracking, color: du.ink);
+      TextStyle(fontFamily: tf, fontSize: size, height: height, fontWeight: w, letterSpacing: tracking + s.titleTracking, color: du.ink);
   final text = TextTheme(
-    displayLarge: title(56, 1.0, s.numberWeight, -1.8).copyWith(fontFamily: s.figures),
+    displayLarge: title(56, 1.0, s.numberWeight, -1.8),
     headlineLarge: title(40, 1.1, s.titleWeight, -1.1),
     headlineMedium: title(24, 1.25, s.titleWeight, -0.4),
     titleLarge: title(18, 1.33, s.titleWeight, -0.2),
@@ -252,9 +234,7 @@ ThemeData buildTheme(Brightness b, [Look look = Look.standard]) {
             ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(s.controlRadius), side: BorderSide(color: du.ink, width: s.borderWidth))
             : null,
         elevation: 0, height: 68,
-        labelTextStyle: WidgetStatePropertyAll(s.caps
-            ? text.labelSmall?.copyWith(letterSpacing: s.labelTracking, color: du.inkSecondary, fontSize: 10.5)
-            : text.labelMedium),
+        labelTextStyle: WidgetStatePropertyAll(text.labelMedium),
         iconTheme: WidgetStateProperty.resolveWith((st) => IconThemeData(
             color: st.contains(WidgetState.selected) ? (look.navSelected?.call(du) ?? du.accentText) : du.inkSecondary, size: 22))),
     inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: du.surface, isDense: true, border: field, enabledBorder: field,

@@ -107,7 +107,7 @@ class NutrientTargets extends StatelessWidget {
         for (final group in NutrientGroup.values) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
-            child: Text(context.look.caps ? group.label.toUpperCase() : group.label, style: sectionLabel(context)),
+            child: Text(group.label, style: context.text.labelLarge?.copyWith(color: context.muted)),
           ),
           Panel(
             child: Padding(
