@@ -68,6 +68,8 @@ flutter:
   assets:
     - assets/cnf/foods.json
     - assets/taxonomy.json
+    # The taxonomy's pictures (tool/gen_art.py): 256 px WebPs, about 2 MB in all.
+    - assets/art/
   # The design system's type (derekurban/design-system v0.1.0, as in easyday): Albert Sans for titles, Wix Madefor
   # Text for everything else. OFL; the licences sit beside the fonts.
   fonts:

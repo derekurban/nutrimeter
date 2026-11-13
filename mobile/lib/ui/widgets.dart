@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../data/model.dart';
 import '../data/nutrients.dart';
 import '../logic/foods.dart';
+import '../services/taxonomy_asset.dart';
 import 'theme.dart';
 
 /// A horizontal progress bar with its percentage printed inside. Gray while it fills; the accent once a target is met;
@@ -165,7 +166,8 @@ class MacroDonut extends StatelessWidget {
 }
 
 /// A catalogue food's picture (its category's, else its subgroup's, else its group's; or a product photo saved by an
-/// older version), an initial on a sunk tile otherwise, and while offline.
+/// older version), an initial on a sunk tile otherwise. Taxonomy pictures come from the app's bundle when it has
+/// them, so they show offline; others need the network and show the initial without it.
 class FoodThumb extends StatelessWidget {
   const FoodThumb({super.key, required this.food, this.size = 40});
 
@@ -195,7 +197,10 @@ class FoodThumb extends StatelessWidget {
         height: size,
         // Old product photos were shot on white; the taxonomy pictures sit on the sunk tile like the initials.
         color: f?.source == FoodSource.off ? Colors.white : du.sunk,
-        child: Image.network(url, fit: BoxFit.contain, errorBuilder: (_, _, _) => letter),
+        child: switch (BundledArt.assetFor(url)) {
+          final asset? => Image.asset(asset, fit: BoxFit.contain, errorBuilder: (_, _, _) => letter),
+          null => Image.network(url, fit: BoxFit.contain, errorBuilder: (_, _, _) => letter),
+        },
       ),
     );
   }
