@@ -208,10 +208,10 @@ class SettingsPage extends StatelessWidget {
               builder: (_, on, _) => SwitchListTile(
                 value: on,
                 onChanged: Playground.setEnabled,
-                title: const Text('Try new looks'),
+                title: const Text('Try new layouts and colours'),
                 subtitle: Text(on
-                    ? 'Wearing ${Playground.chosen.value.name}. The floating button switches looks.'
-                    : 'A floating button over the app switches between the facelift candidates.'),
+                    ? '${Playground.chosenLayout.value.label} in ${Playground.chosen.value.name}. The floating button switches both.'
+                    : 'A floating button over the app switches the diary's layout and the colour scheme.'),
               ),
             ),
           ),

@@ -40,33 +40,38 @@ Madefor Text for everything else (`assets/fonts/`, OFL), and icons are Lucide. D
 are gray, the three macros told apart by lightness (protein darkest, fat lightest); a bar turns accent green when its
 target is met and danger red when a limit is passed. Colour never decorates.
 
-## Playground: the facelift looks
+## Playground: the facelift
 
-The 2026-11 facelift is being chosen on the phone. `lib/ui/looks.dart` holds the default look (the design system
-above) and the candidates, all built from the berry icon: its plum, raspberry and lavender for the macros, its leaf for
-a target met, a warm ground. A look is colour tokens (`Du`) plus a `LookStyle` (faces, corners, outlines, shadows,
-bars, and which diary summary from `lib/ui/heroes.dart` heads the day); widgets read both, so the whole app follows.
-Surfaces are `Panel`s, not `Card`s, so a look can outline or hard-shadow them.
+The 2026-11 facelift is being chosen on the phone, in two independent parts.
 
-Round one had six; Orchard and Jam were kept, and a Nutrition Facts panel, a dark gauge, a till receipt and a two-ink
-print were dropped. Orchard and Jam differ in three things, and round two's four new looks cross them, so a preference
-says which thing it is for:
+**Layouts** (`lib/ui/diary_layouts.dart`) are the diary's structure: how the day is organised and how its numbers are
+drawn. Every layout shows the same day through one `DayView` and logs through the same callbacks.
 
-| | Summary | Edges | Dress |
-|---|---|---|---|
-| Orchard | berries | soft | cream, plum ink, serif |
-| Compote | block and jars | soft | cream |
-| Punnet | berries | outlined, hard shadows | cream |
-| Sorbet | berries | soft | butter, near-black, chunky grotesk |
-| Marmalade | block and jars | outlined | cream |
-| Jam | block and jars | outlined | butter |
+| Layout | The day as |
+|---|---|
+| Stack | the original: a summary, a card per meal, nutrient bars |
+| Timeline | one rail, meals as stops along it with a running total |
+| Tiles | a grid: energy, macro rings, energy by meal as a bar chart, a nutrient heat grid |
+| Wheel | one ring split by meal, and a radial wheel of every nutrient against its target |
+| Ledger | type and rules, no cards: P / C / F / kcal columns, a dense nutrient grid |
+| Focus | the answer first: a sentence on where the day stands, the current meal, what is short |
 
-Playground mode (`lib/ui/playground.dart`) floats a draggable berry button over the app; it opens a drawer of looks,
-a "Fill today with a sample day" action for an empty install, and "Leave playground". Targets → Playground turns it on
-in any build. It is on by default in the `playground` flavour: `app.nutrimeter.playground`, "Nutrimeter Playground",
-berries on aubergine, on the dev backend, installed beside the real app. A push to the `playground` branch releases it
-as a prerelease carrying `nutrimeter-playground.apk`, and installed playground apps update themselves from those.
-Once a look is chosen, it becomes the default and the rest (and their fonts) go.
+**Colour schemes** (`lib/ui/looks.dart`) are colour tokens (`Du`) plus a `LookStyle` (faces, corners, outlines,
+shadows, bars); widgets read both, so the whole app follows. Surfaces are `Panel`s, not `Card`s, so a scheme can
+outline or hard-shadow them. Besides the default: Orchard, Jam, Paper, Leaf, Blush and Dusk (dark), all carrying the
+berry icon's colours for the macros.
+
+How it got here: round one was six looks (Orchard and Jam kept; a Nutrition Facts panel, a dark gauge, a till receipt
+and a two-ink print dropped); round two crossed Orchard and Jam and showed that repainting one structure was not the
+answer; round three split structure from colour.
+
+Playground mode (`lib/ui/playground.dart`) floats a draggable berry button over the app; it opens a dock with a row of
+layout tabs and a row of colour tabs (the app stays live above it), a sample day for an empty install, and a way out.
+Targets → Playground turns it on in any build. It is on by default in the `playground` flavour:
+`app.nutrimeter.playground`, "Nutrimeter Playground", berries on aubergine, on the dev backend, installed beside the
+real app. A push to the `playground` branch releases it as a prerelease carrying `nutrimeter-playground.apk`, and
+installed playground apps update themselves from those. Once a layout and a scheme are chosen, they become the app and
+the rest (and their fonts) go.
 
 ## Dev loop
 

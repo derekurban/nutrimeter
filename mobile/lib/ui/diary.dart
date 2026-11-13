@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/model.dart';
-import '../data/nutrients.dart';
 import '../data/store.dart';
-import '../logic/foods.dart';
+import 'diary_layouts.dart';
 import 'food_detail.dart';
 import 'added_products.dart';
 import 'food_picker.dart';
-import 'nutrition.dart';
+import 'playground.dart';
 import 'product_flow.dart';
 import 'recipes.dart';
 import 'theme.dart';
@@ -95,7 +94,6 @@ class _DiaryPageState extends State<DiaryPage> {
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
     final entries = state.entriesFor(_date);
-    final totals = totalNutrients(state, entries);
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 4,
@@ -143,115 +141,16 @@ class _DiaryPageState extends State<DiaryPage> {
           onPressed: () => _add(MealLabel.forTime(DateTime.now())),
         ),
       ]),
-      body: ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 112), children: [
-        OpenReviewsBanner(onOpen: (r) => resumeReview(context, r, date: _date)),
-        EnergySummary(amounts: totals, targets: state.resolvedTargets),
-        for (final meal in Meal.values)
-          _MealCard(
-            meal: meal,
-            entries: entries.where((e) => e.meal == meal).toList(),
-            onAdd: () => _add(meal),
-            onEdit: _edit,
-            onRemove: _remove,
-            onAction: (a, list) => _mealAction(a, meal, list),
-          ),
-        const SectionTitle('Nutrients'),
-        NutrientTargets(amounts: totals, targets: state.resolvedTargets),
-      ]),
-    );
-  }
-}
-
-class _MealCard extends StatelessWidget {
-  const _MealCard({required this.meal, required this.entries, required this.onAdd, required this.onEdit, required this.onRemove, required this.onAction});
-
-  final Meal meal;
-  final List<DiaryEntry> entries;
-  final VoidCallback onAdd;
-  final void Function(DiaryEntry) onEdit;
-  final void Function(DiaryEntry) onRemove;
-  final void Function(String action, List<DiaryEntry> entries) onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final state = AppScope.of(context);
-    final totals = totalNutrients(state, entries);
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Panel(
-        clipBehavior: Clip.antiAlias,
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 0, 0),
-            child: Row(children: [
-              Text(meal.label, style: context.text.titleLarge),
-              const SizedBox(width: 10),
-              if (entries.isNotEmpty)
-                Expanded(
-                  child: Text(
-                    '${formatAmount(totals['energy'] ?? 0, 'kcal')} kcal · P ${formatAmount(totals['protein'] ?? 0)} · C ${formatAmount(totals['carbs'] ?? 0)} · F ${formatAmount(totals['fat'] ?? 0)}',
-                    style: TextStyle(color: context.muted, fontSize: 12.5),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                )
-              else
-                const Spacer(),
-              PopupMenuButton<String>(
-                tooltip: '${meal.label} options',
-                onSelected: (a) => onAction(a, entries),
-                itemBuilder: (_) => [
-                  PopupMenuItem(value: 'recipe', enabled: entries.isNotEmpty, child: const Text('Save as recipe')),
-                  const PopupMenuItem(value: 'copy', child: Text('Copy from previous day')),
-                  PopupMenuItem(value: 'clear', enabled: entries.isNotEmpty, child: Text('Clear ${meal.label.toLowerCase()}')),
-                ],
-              ),
-            ]),
-          ),
-          for (final e in entries) _EntryTile(entry: e, onTap: () => onEdit(e), onRemove: () => onRemove(e)),
-          ListTile(
-            dense: true,
-            leading: Icon(LucideIcons.plus, color: context.du.accentText),
-            title: Text('Add to ${meal.label.toLowerCase()}', style: TextStyle(color: context.du.accentText, fontWeight: FontWeight.w500)),
-            onTap: onAdd,
+      // The body is the layout chosen in playground mode (lib/ui/diary_layouts.dart); the original stack otherwise.
+      body: ValueListenableBuilder<DiaryLayout>(
+        valueListenable: Playground.layout,
+        builder: (context, layout, _) => ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 112), children: [
+          OpenReviewsBanner(onOpen: (r) => resumeReview(context, r, date: _date)),
+          ...diaryBody(
+            layout,
+            DayView(state: state, entries: entries, onAdd: _add, onEdit: _edit, onRemove: _remove, onMealAction: _mealAction),
           ),
         ]),
-      ),
-    );
-  }
-}
-
-class _EntryTile extends StatelessWidget {
-  const _EntryTile({required this.entry, required this.onTap, required this.onRemove});
-
-  final DiaryEntry entry;
-  final VoidCallback onTap;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final state = AppScope.of(context);
-    final food = state.resolve(entry.foodId);
-    final n = portionNutrients(state, entry);
-    return Dismissible(
-      key: ValueKey(entry.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: context.du.danger,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: Icon(LucideIcons.trash2, color: context.du.surface),
-      ),
-      onDismissed: (_) => onRemove(),
-      child: ListTile(
-        leading: FoodThumb(food: food),
-        title: Text(food?.name ?? 'Deleted food', maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          '${portionLabel(entry)} · P ${formatAmount(n['protein'] ?? 0)} C ${formatAmount(n['carbs'] ?? 0)} F ${formatAmount(n['fat'] ?? 0)}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Text('${formatAmount(n['energy'] ?? 0, 'kcal')} kcal', style: const TextStyle(fontWeight: FontWeight.w600)),
-        onTap: onTap,
       ),
     );
   }

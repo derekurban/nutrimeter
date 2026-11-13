@@ -1,21 +1,14 @@
-// The looks the app can wear. [Look.standard] is the original theme (derekurban/design-system v0.1.0). The others are
-// the 2026-11 facelift candidates, tried on the phone in playground mode (lib/ui/playground.dart). All of them carry
-// the berry icon into the app: its plum, raspberry and lavender for the macros, its leaf for a target met, a warm
-// ground.
+// The colour schemes the app can wear. [Look.standard] is the original theme (derekurban/design-system v0.1.0). The
+// others are candidates for the 2026-11 facelift, tried on the phone in playground mode (lib/ui/playground.dart). All
+// of them carry the berry icon into the app: its plum, raspberry and lavender for the macros, a leaf green for a
+// target met.
 //
-// Round two (2026-11-13). Of the first six, Orchard and Jam were kept and four dropped (a Nutrition Facts panel, a dark
-// gauge, a till receipt, a two-ink print: a concept laid over the data, or the icon's colours left behind). Orchard and
-// Jam differ in three things, and the four new looks cross them so a preference says which thing it is for:
+// Round one had six looks; Orchard and Jam were kept (a Nutrition Facts panel, a dark gauge, a till receipt and a
+// two-ink print were dropped). Round two crossed those two (summary, edges, dress) and showed that repainting one
+// structure was not getting anywhere. Since round three the structure is its own choice (lib/ui/diary_layouts.dart)
+// and these are only the colour and type that go with any layout: Orchard and Jam, and four new palettes.
 //
-//   summary   berries (a big figure beside the icon's berries)   or   block (the figure on colour, a sticker, jars)
-//   edges     soft (no outlines, soft shadows)                    or   hard (ink outlines, hard shadows)
-//   dress     cream, plum ink, a serif                            or   butter, near-black, a chunky grotesk
-//
-//   Orchard    berries · soft · cream      Punnet     berries · hard · cream
-//   Compote    block   · soft · cream      Marmalade  block   · hard · cream
-//   Sorbet     berries · soft · butter     Jam        block   · hard · butter
-//
-// Only one look is meant to survive.
+// Only one scheme is meant to survive.
 import 'package:flutter/material.dart';
 
 import 'theme.dart';
@@ -53,8 +46,7 @@ class Look {
 
   static const standard = Look(id: 'default', name: 'Default', blurb: 'Today\'s app: gray, quiet, one moss accent', light: Du.light, dark: Du.dark);
 
-  /// Quietest to loudest.
-  static final all = [standard, orchard, compote, punnet, sorbet, marmalade, jam];
+  static final all = [standard, orchard, jam, paper, leaf, blush, dusk];
 
   static Look byId(String? id) => all.firstWhere((l) => l.id == id, orElse: () => standard);
 }
@@ -83,63 +75,13 @@ Color _creamSelected(Du du) => _plum;
 const orchard = Look(
   id: 'orchard',
   name: 'Orchard',
-  blurb: 'Berries · soft · cream. The quiet one: thin serif, no outlines',
+  blurb: 'Cream paper, plum ink, a soft serif',
   brightness: Brightness.light,
   light: _creamDu,
   style: LookStyle(
     titleFont: 'Fraunces', bodyFont: 'Instrument Sans', serif: true, titleWeight: FontWeight.w400, numberWeight: FontWeight.w300,
     radius: 26, controlRadius: 999, borderWidth: 0, shadow: ShadowKind.soft,
     barHeight: 10, barRadius: 999, roundCaps: true, roundThumbs: true, hero: HeroKind.berries,
-  ),
-  navIndicator: _creamIndicator,
-  navSelected: _creamSelected,
-);
-
-/// Compote: Orchard's softness and serif, with Jam's summary: the day on a block of plum, a sticker, three jars.
-const compote = Look(
-  id: 'compote',
-  name: 'Compote',
-  blurb: 'Block · soft · cream. Orchard, with Jam\'s plum block and jars up top',
-  brightness: Brightness.light,
-  light: _creamDu,
-  style: LookStyle(
-    titleFont: 'Fraunces', bodyFont: 'Instrument Sans', serif: true, titleWeight: FontWeight.w400, numberWeight: FontWeight.w300,
-    radius: 26, controlRadius: 999, borderWidth: 0, shadow: ShadowKind.soft,
-    barHeight: 10, barRadius: 999, roundCaps: true, roundThumbs: true, hero: HeroKind.block,
-    heroColor: _plum, stickerColor: Color(0xFFD9C2F0),
-  ),
-  navIndicator: _creamIndicator,
-  navSelected: _creamSelected,
-);
-
-/// Punnet: Orchard's page and berries, given Jam's edges: plum ink outlines and hard plum shadows.
-const punnet = Look(
-  id: 'punnet',
-  name: 'Punnet',
-  blurb: 'Berries · hard · cream. Orchard, with Jam\'s outlines and hard shadows',
-  brightness: Brightness.light,
-  light: _creamDu,
-  style: LookStyle(
-    titleFont: 'Fraunces', bodyFont: 'Instrument Sans', serif: true, titleWeight: FontWeight.w600, numberWeight: FontWeight.w400,
-    radius: 20, controlRadius: 999, borderWidth: 1.8, inkBorders: true, shadow: ShadowKind.hard, hardOffset: Offset(3, 4),
-    bar: BarKind.outlined, barHeight: 14, barRadius: 999, roundCaps: true, roundThumbs: true, hero: HeroKind.berries,
-  ),
-  navIndicator: _creamIndicator,
-  navSelected: _creamSelected,
-);
-
-/// Marmalade: all of Jam's structure (block, sticker, jars, outlines, hard shadows) in Orchard's cream and serif.
-const marmalade = Look(
-  id: 'marmalade',
-  name: 'Marmalade',
-  blurb: 'Block · hard · cream. Jam, grown up: its stickers in cream and serif',
-  brightness: Brightness.light,
-  light: _creamDu,
-  style: LookStyle(
-    titleFont: 'Fraunces', bodyFont: 'Instrument Sans', serif: true, titleWeight: FontWeight.w600, numberWeight: FontWeight.w400,
-    radius: 20, controlRadius: 999, borderWidth: 1.8, inkBorders: true, shadow: ShadowKind.hard, hardOffset: Offset(3, 4),
-    bar: BarKind.outlined, barHeight: 14, barRadius: 999, roundCaps: true, roundThumbs: true, hero: HeroKind.block,
-    heroColor: _plum, stickerColor: Color(0xFFD9C2F0),
   ),
   navIndicator: _creamIndicator,
   navSelected: _creamSelected,
@@ -153,7 +95,7 @@ const _butterInk = Color(0xFF1E0A18);
 const jam = Look(
   id: 'jam',
   name: 'Jam',
-  blurb: 'Block · hard · butter. The loud one: thick outlines, stickers',
+  blurb: 'Butter yellow, thick outlines, chunky type',
   brightness: Brightness.light,
   light: Du(
     bg: Color(0xFFFFEFC7), surface: Color(0xFFFFFFFF), sunk: Color(0xFFFFE2EC), line: _butterInk, lineStrong: _butterInk,
@@ -173,29 +115,101 @@ const jam = Look(
   navSelected: _inkSelected,
 );
 
-/// Sorbet: Jam's butter, raspberry and chunky type, with Orchard's softness and its berries.
-const sorbet = Look(
-  id: 'sorbet',
-  name: 'Sorbet',
-  blurb: 'Berries · soft · butter. Jam\'s colour and chunky type, no outlines',
-  brightness: Brightness.light,
-  light: Du(
-    bg: Color(0xFFFFEFC7), surface: Color(0xFFFFFFFF), sunk: Color(0xFFFFE8EF), line: Color(0xFFF3DDAA), lineStrong: Color(0xFFE2C684),
-    ink: _butterInk, inkSecondary: Color(0xFF5B3F52), inkTertiary: Color(0xFF6E5466),
-    accentStrong: Color(0xFFE5276E), accentText: Color(0xFFB8114F), accentSubtle: Color(0xFFFFD6E5), accentLine: Color(0xFFF59ABC), onAccent: Color(0xFFFFFFFF),
-    warning: Color(0xFF8E5300), warningSubtle: Color(0xFFFFE3A8), warningLine: Color(0xFFE0B55C),
-    danger: Color(0xFFD7261E), dangerSubtle: Color(0xFFFFDAD3), dangerLine: Color(0xFFF2A49C), dataNeutral: Color(0xFFFFC8DB),
-    protein: Color(0xFF8E1258), carbs: Color(0xFFFF5C93), fat: Color(0xFFBC97F2),
-  ),
-  style: LookStyle(
-    titleFont: 'Bricolage Grotesque', bodyFont: 'Bricolage Grotesque', titleWeight: FontWeight.w800, numberWeight: FontWeight.w800,
-    titleTracking: -0.4, radius: 26, controlRadius: 999, borderWidth: 0, shadow: ShadowKind.soft,
-    barHeight: 12, barRadius: 999, roundCaps: true, roundThumbs: true, hero: HeroKind.berries,
-  ),
-  navBackground: _white,
-  navIndicator: _butterIndicator,
-  navSelected: _inkSelected,
-);
 Color _white(Du du) => const Color(0xFFFFFFFF);
 Color _butterIndicator(Du du) => const Color(0xFFFFD43B);
 Color _inkSelected(Du du) => du.ink;
+
+// --- Round three's palettes: soft edges, the berries for the macros, each on a different ground. ---------------------
+
+const _soft = LookStyle(
+  titleFont: 'Bricolage Grotesque', bodyFont: 'Instrument Sans', titleWeight: FontWeight.w600, numberWeight: FontWeight.w600,
+  titleTracking: -0.3, radius: 20, controlRadius: 14, borderWidth: 0, shadow: ShadowKind.soft,
+  barHeight: 12, barRadius: 999, roundCaps: true, hero: HeroKind.berries,
+);
+
+/// Paper: warm white and near-black, the berries the only colour.
+const paper = Look(
+  id: 'paper',
+  name: 'Paper',
+  blurb: 'Warm white, near-black ink; the berries are the only colour',
+  brightness: Brightness.light,
+  light: Du(
+    bg: Color(0xFFF7F4EF), surface: Color(0xFFFFFFFF), sunk: Color(0xFFEFEAE2), line: Color(0xFFE3DCD1), lineStrong: Color(0xFFCBC2B4),
+    ink: Color(0xFF1F1A1D), inkSecondary: Color(0xFF5F575B), inkTertiary: Color(0xFF756C70),
+    accentStrong: _leaf, accentText: Color(0xFF477510), accentSubtle: Color(0xFFEAF1D8), accentLine: Color(0xFFB9D08A), onAccent: Color(0xFFFFFFFF),
+    warning: Color(0xFF8E5300), warningSubtle: Color(0xFFF8E9CF), warningLine: Color(0xFFDDB878),
+    danger: Color(0xFFC0183F), dangerSubtle: Color(0xFFFCE3E8), dangerLine: Color(0xFFEFA8B8), dataNeutral: Color(0xFFD3CABD),
+    protein: _plum, carbs: _raspberry, fat: _lavender,
+  ),
+  style: _soft,
+  navIndicator: _paperIndicator,
+  navSelected: _inkSelected,
+);
+Color _paperIndicator(Du du) => du.sunk;
+
+/// Leaf: the icon's leaf as the ground. Pale sage, forest ink, the berries against green.
+const leaf = Look(
+  id: 'leaf',
+  name: 'Leaf',
+  blurb: 'Pale sage and forest ink; berries against green',
+  brightness: Brightness.light,
+  light: Du(
+    bg: Color(0xFFEAF1DC), surface: Color(0xFFF9FCF2), sunk: Color(0xFFDCE7C8), line: Color(0xFFCFDDB6), lineStrong: Color(0xFFB2C692),
+    ink: Color(0xFF1D3311), inkSecondary: Color(0xFF4C6040), inkTertiary: Color(0xFF61744F),
+    accentStrong: Color(0xFF2F6B14), accentText: Color(0xFF2B6212), accentSubtle: Color(0xFFD5E8BC), accentLine: Color(0xFF9DC076), onAccent: Color(0xFFF9FCF2),
+    warning: Color(0xFF8A5500), warningSubtle: Color(0xFFF5E8C4), warningLine: Color(0xFFD8B56E),
+    danger: Color(0xFFB8143F), dangerSubtle: Color(0xFFFADDE3), dangerLine: Color(0xFFEBA3B4), dataNeutral: Color(0xFFBFD0A4),
+    protein: _plum, carbs: _raspberry, fat: Color(0xFF9D74C8),
+  ),
+  style: _soft,
+  navIndicator: _leafIndicator,
+  navSelected: _inkSelected,
+);
+Color _leafIndicator(Du du) => du.accentSubtle;
+
+/// Blush: raspberry turned right down into the ground. Pink paper, plum ink.
+const blush = Look(
+  id: 'blush',
+  name: 'Blush',
+  blurb: 'Pink paper, plum ink, plum for what you tap',
+  brightness: Brightness.light,
+  light: Du(
+    bg: Color(0xFFFBE6EC), surface: Color(0xFFFFF8FA), sunk: Color(0xFFF5D3DD), line: Color(0xFFEFC4D0), lineStrong: Color(0xFFE0A5B7),
+    ink: Color(0xFF45092B), inkSecondary: Color(0xFF7C4A60), inkTertiary: Color(0xFF8F6075),
+    accentStrong: Color(0xFF7E0E4B), accentText: Color(0xFF7E0E4B), accentSubtle: Color(0xFFF5D3DD), accentLine: Color(0xFFD996B0), onAccent: Color(0xFFFFF8FA),
+    warning: Color(0xFF8E5300), warningSubtle: Color(0xFFFAE7C8), warningLine: Color(0xFFDDB878),
+    danger: Color(0xFFC21A1A), dangerSubtle: Color(0xFFFCDAD6), dangerLine: Color(0xFFEDA59E), dataNeutral: Color(0xFFE9B9C8),
+    protein: _plum, carbs: _raspberry, fat: Color(0xFF9D74C8),
+  ),
+  style: LookStyle(
+    titleFont: 'Fraunces', bodyFont: 'Instrument Sans', serif: true, titleWeight: FontWeight.w400, numberWeight: FontWeight.w300,
+    radius: 24, controlRadius: 999, borderWidth: 0, shadow: ShadowKind.soft,
+    barHeight: 12, barRadius: 999, roundCaps: true, roundThumbs: true, hero: HeroKind.berries,
+  ),
+  navIndicator: _blushIndicator,
+  navSelected: _creamSelected,
+);
+Color _blushIndicator(Du du) => du.sunk;
+
+/// Dusk: the berries at night. Deep plum ground, cream ink, the leaf brightened for the accent.
+const dusk = Look(
+  id: 'dusk',
+  name: 'Dusk',
+  blurb: 'Dark: deep plum, cream ink, the berries lit up',
+  brightness: Brightness.dark,
+  light: Du(
+    bg: Color(0xFF1B0E18), surface: Color(0xFF291725), sunk: Color(0xFF3A2334), line: Color(0xFF45293D), lineStrong: Color(0xFF5E3A54),
+    ink: Color(0xFFFBEFE3), inkSecondary: Color(0xFFC6AEBB), inkTertiary: Color(0xFFA890A0),
+    accentStrong: Color(0xFFA9D65C), accentText: Color(0xFFB4DC6E), accentSubtle: Color(0xFF2E3A1C), accentLine: Color(0xFF5B7230), onAccent: Color(0xFF1B0E18),
+    warning: Color(0xFFF2B866), warningSubtle: Color(0xFF3C2A14), warningLine: Color(0xFF6E4D22),
+    danger: Color(0xFFFF6B7F), dangerSubtle: Color(0xFF45181F), dangerLine: Color(0xFF7C2D3A), dataNeutral: Color(0xFF5A3C52),
+    protein: Color(0xFFD0458F), carbs: Color(0xFFFF7FAE), fat: Color(0xFFC8A4F2),
+  ),
+  style: _soft,
+  navBackground: _duskNav,
+  navIndicator: _duskIndicator,
+  navSelected: _duskSelected,
+);
+Color _duskNav(Du du) => du.bg;
+Color _duskIndicator(Du du) => du.sunk;
+Color _duskSelected(Du du) => du.accentStrong;

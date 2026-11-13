@@ -27,7 +27,7 @@ class DayFigures {
   double get fraction => target > 0 ? consumed / target : 0;
 }
 
-String _thousands(double v) {
+String thousands(double v) {
   final s = v.round().abs().toString();
   final b = StringBuffer(v < 0 ? '-' : '');
   for (var i = 0; i < s.length; i++) {
@@ -37,7 +37,7 @@ String _thousands(double v) {
   return b.toString();
 }
 
-double _ratio(double v, double t) => t > 0 ? v / t : 0;
+double ratio(double v, double t) => t > 0 ? v / t : 0;
 
 Widget lookHero(BuildContext context, Nutrients amounts, Map<String, ResolvedTarget> targets) {
   final d = DayFigures(amounts, targets);
@@ -83,15 +83,15 @@ class _Berries extends StatelessWidget {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(_thousands(d.consumed),
+                  child: Text(thousands(d.consumed),
                       style: face.copyWith(fontSize: 58, height: 1.0, fontWeight: s.numberWeight, letterSpacing: -2, fontFeatures: tabular)),
                 ),
                 const SizedBox(height: 4),
                 Text.rich(
                   TextSpan(children: [
-                    TextSpan(text: 'of ${_thousands(d.target)} kcal  ·  ', style: TextStyle(color: du.inkSecondary)),
+                    TextSpan(text: 'of ${thousands(d.target)} kcal  ·  ', style: TextStyle(color: du.inkSecondary)),
                     TextSpan(
-                      text: left >= 0 ? '${_thousands(left)} to go' : '${_thousands(-left)} over',
+                      text: left >= 0 ? '${thousands(left)} to go' : '${thousands(-left)} over',
                       style: TextStyle(color: left >= 0 ? du.accentText : du.danger, fontWeight: FontWeight.w600),
                     ),
                   ]),
@@ -116,7 +116,7 @@ class _Berries extends StatelessWidget {
                   width: 64,
                   child: Text(macroLabels[m.key]!, style: face.copyWith(fontSize: 16, fontWeight: s.serif ? FontWeight.w400 : FontWeight.w600)),
                 ),
-                Expanded(child: ProgressBar(fraction: _ratio(m.grams, m.target), color: du.macro(m.key), showLabel: false)),
+                Expanded(child: ProgressBar(fraction: ratio(m.grams, m.target), color: du.macro(m.key), showLabel: false)),
                 SizedBox(
                   width: 96,
                   child: Text('${formatAmount(m.grams)} / ${formatAmount(m.target)} g',
@@ -161,7 +161,7 @@ class _BerriesPainter extends CustomPainter {
     if (outline > 0) canvas.drawPath(leafPath, ink);
     for (final m in d.macros) {
       final c = du.macro(m.key);
-      final share = _ratio(m.grams, m.target).clamp(0.0, 1.2);
+      final share = ratio(m.grams, m.target).clamp(0.0, 1.2);
       final r = w * (0.11 + 0.15 * math.sqrt(share));
       final o = spots[m.key]!;
       // the whole berry as a faint ground, the eaten part as the fruit
@@ -215,7 +215,7 @@ class _Block extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text.rich(TextSpan(children: [
                   TextSpan(
-                    text: _thousands(d.consumed),
+                    text: thousands(d.consumed),
                     style: face.copyWith(fontSize: 64, fontWeight: s.numberWeight, letterSpacing: -2.5, color: onBlock, fontFeatures: tabular),
                   ),
                   TextSpan(text: ' kcal', style: face.copyWith(fontSize: 22, fontWeight: s.serif ? FontWeight.w400 : FontWeight.w800, color: onBlock)),
@@ -229,7 +229,7 @@ class _Block extends StatelessWidget {
                     border: hard ? Border.all(color: du.ink, width: s.borderWidth) : null,
                   ),
                   child: Text(
-                    left >= 0 ? '${_thousands(left)} left of ${_thousands(d.target)}' : '${_thousands(-left)} over ${_thousands(d.target)}',
+                    left >= 0 ? '${thousands(left)} left of ${thousands(d.target)}' : '${thousands(-left)} over ${thousands(d.target)}',
                     style: TextStyle(fontFamily: s.bodyFont, fontSize: 14, height: 1, fontWeight: FontWeight.w600, color: left >= 0 ? du.ink : du.danger),
                   ),
                 ),
@@ -285,7 +285,7 @@ class _Jar extends StatelessWidget {
   Widget build(BuildContext context) {
     final du = context.du, s = context.look;
     final hard = s.shadow == ShadowKind.hard;
-    final f = _ratio(macro.grams, macro.target);
+    final f = ratio(macro.grams, macro.target);
     final over = f > 1.15;
     final strong = s.serif ? FontWeight.w600 : FontWeight.w800;
     return Panel(

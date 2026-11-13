@@ -1,10 +1,10 @@
-// Playground mode: a floating button over the whole app that opens a drawer of looks (lib/ui/looks.dart), so the
-// 2026-11 facelift candidates can be tried on a phone against real data. Everything in the app follows the chosen look
-// at once. On by default in the playground flavour (app.nutrimeter.playground); Targets → Playground turns it on or off
-// in any build. The choice and the button's place are kept in playground.json beside the data file.
+// Playground mode: a floating berry button over the whole app that opens a dock with two rows of tabs, so the 2026-11
+// facelift candidates can be tried on a phone against real data: the diary's layout (lib/ui/diary_layouts.dart) and
+// the colour scheme (lib/ui/looks.dart), each chosen on its own. One tap flips either, with the app live above the
+// dock. On by default in the playground flavour (app.nutrimeter.playground); Targets → Playground turns it on or off
+// in any build. The choices are kept in playground.json beside the data file.
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show appFlavor;
@@ -13,20 +13,27 @@ import 'package:path_provider/path_provider.dart';
 
 import '../data/model.dart';
 import '../data/store.dart';
+import 'diary_layouts.dart';
 import 'looks.dart';
 import 'theme.dart';
 
 class Playground {
   Playground._();
 
-  /// Whether the button shows, and the chosen look applies.
+  /// Whether the button shows, and the chosen scheme and layout apply.
   static final enabled = ValueNotifier<bool>(appFlavor == 'playground');
 
-  /// The look picked in the drawer.
+  /// The colour scheme picked in the dock.
   static final chosen = ValueNotifier<Look>(Look.standard);
 
-  /// The look the app wears: the chosen one in playground mode, else the default.
+  /// The scheme the app wears: the chosen one in playground mode, else the default.
   static final current = ValueNotifier<Look>(Look.standard);
+
+  /// The diary layout picked in the dock.
+  static final chosenLayout = ValueNotifier<DiaryLayout>(DiaryLayout.stack);
+
+  /// The layout the diary uses: the chosen one in playground mode, else the original stack.
+  static final layout = ValueNotifier<DiaryLayout>(DiaryLayout.stack);
 
   static File? _file;
 
@@ -37,6 +44,7 @@ class Playground {
         final j = jsonDecode(await _file!.readAsString()) as Map<String, dynamic>;
         enabled.value = j['enabled'] as bool? ?? enabled.value;
         chosen.value = Look.byId(j['look'] as String?);
+        chosenLayout.value = DiaryLayout.byName(j['layout'] as String?);
       }
     } catch (_) {
       // A missing or broken file is just the defaults.
@@ -50,23 +58,32 @@ class Playground {
     _save();
   }
 
+  static void chooseLayout(DiaryLayout l) {
+    chosenLayout.value = l;
+    _apply();
+    _save();
+  }
+
   static void setEnabled(bool on) {
     enabled.value = on;
     _apply();
     _save();
   }
 
-  static void _apply() => current.value = enabled.value ? chosen.value : Look.standard;
+  static void _apply() {
+    current.value = enabled.value ? chosen.value : Look.standard;
+    layout.value = enabled.value ? chosenLayout.value : DiaryLayout.stack;
+  }
 
   static void _save() {
     final f = _file;
     if (f == null) return;
-    f.writeAsString(jsonEncode({'enabled': enabled.value, 'look': chosen.value.id})).ignore();
+    f.writeAsString(jsonEncode({'enabled': enabled.value, 'look': chosen.value.id, 'layout': chosenLayout.value.name})).ignore();
   }
 }
 
-/// The playground's floating button and drawer, over everything (dialogs and sheets included). Wraps the app's
-/// navigator through MaterialApp.builder.
+/// The playground's floating button and dock, over everything (dialogs and sheets included). Wraps the app's
+/// navigator through MaterialApp.builder, so nothing in it may need an Overlay (no tooltips).
 class PlaygroundLayer extends StatefulWidget {
   const PlaygroundLayer({super.key, required this.child, required this.messenger});
 
@@ -87,38 +104,24 @@ class _PlaygroundLayerState extends State<PlaygroundLayer> {
 
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(
-    valueListenable: Playground.enabled,
-    builder: (context, on, _) {
-      if (!on) return widget.child;
-      return LayoutBuilder(
-        builder: (context, box) {
-          final pad = MediaQuery.paddingOf(context);
-          final free = Size(box.maxWidth - _size - 16, box.maxHeight - _size - pad.top - pad.bottom - 16);
-          final left = 8 + _at.dx * free.width;
-          final top = pad.top + 8 + _at.dy * free.height;
-          return Stack(
-            children: [
+        valueListenable: Playground.enabled,
+        builder: (context, on, _) {
+          if (!on) return widget.child;
+          return LayoutBuilder(builder: (context, box) {
+            final pad = MediaQuery.paddingOf(context);
+            final free = Size(box.maxWidth - _size - 16, box.maxHeight - _size - pad.top - pad.bottom - 16);
+            final left = 8 + _at.dx * free.width;
+            final top = pad.top + 8 + _at.dy * free.height;
+            return Stack(children: [
               widget.child,
-              // the scrim and the drawer
-              IgnorePointer(
-                ignoring: !_open,
-                child: GestureDetector(
-                  onTap: () => setState(() => _open = false),
-                  child: AnimatedOpacity(
-                    opacity: _open ? 1 : 0,
-                    duration: const Duration(milliseconds: 220),
-                    child: Container(color: Colors.black.withValues(alpha: 0.38)),
-                  ),
-                ),
-              ),
+              // The dock: no scrim, so the app stays live above it while the tabs are flipped.
               AnimatedPositioned(
-                duration: const Duration(milliseconds: 320),
+                duration: const Duration(milliseconds: 260),
                 curve: Curves.easeOutCubic,
                 left: 0,
                 right: 0,
-                bottom: _open ? 0 : -box.maxHeight,
-                child: _Drawer(
-                  maxHeight: box.maxHeight * 0.82,
+                bottom: _open ? 0 : -260,
+                child: _Dock(
                   onClose: () => setState(() => _open = false),
                   toast: (m) => widget.messenger.currentState
                     ?..hideCurrentSnackBar()
@@ -134,12 +137,10 @@ class _PlaygroundLayerState extends State<PlaygroundLayer> {
                   child: GestureDetector(
                     onTap: () => setState(() => _open = true),
                     onPanStart: (_) => setState(() => _dragging = true),
-                    onPanUpdate: (d) => setState(
-                      () => _at = Offset(
-                        ((left - 8 + d.delta.dx) / free.width).clamp(0.0, 1.0),
-                        ((top - pad.top - 8 + d.delta.dy) / free.height).clamp(0.0, 1.0),
-                      ),
-                    ),
+                    onPanUpdate: (d) => setState(() => _at = Offset(
+                          ((left - 8 + d.delta.dx) / free.width).clamp(0.0, 1.0),
+                          ((top - pad.top - 8 + d.delta.dy) / free.height).clamp(0.0, 1.0),
+                        )),
                     // let go: it settles on the nearer side
                     onPanEnd: (_) => setState(() {
                       _dragging = false;
@@ -148,15 +149,13 @@ class _PlaygroundLayerState extends State<PlaygroundLayer> {
                     child: const _Bubble(size: _size),
                   ),
                 ),
-            ],
-          );
+            ]);
+          });
         },
       );
-    },
-  );
 }
 
-/// The floating button: the current look's three macro colours as berries.
+/// The floating button: the current scheme's three macro colours as berries.
 class _Bubble extends StatelessWidget {
   const _Bubble({required this.size});
 
@@ -167,7 +166,7 @@ class _Bubble extends StatelessWidget {
     final du = context.du;
     return Semantics(
       button: true,
-      label: 'Playground: change the look',
+      label: 'Playground: change the layout and colours',
       child: Container(
         width: size,
         height: size,
@@ -177,23 +176,22 @@ class _Bubble extends StatelessWidget {
           border: Border.all(color: du.surface, width: 2.5),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.28), blurRadius: 14, offset: const Offset(0, 5))],
         ),
-        child: CustomPaint(painter: _MiniBerries(Playground.current.value, size)),
+        child: CustomPaint(painter: _MiniBerries(Playground.current.value)),
       ),
     );
   }
 }
 
 class _MiniBerries extends CustomPainter {
-  _MiniBerries(this.look, this.size);
+  _MiniBerries(this.look);
 
   final Look look;
-  final double size;
 
   @override
   void paint(Canvas canvas, Size s) {
     final du = look.light;
     final w = s.width;
-    final colors = look.light.protein == null ? const [Color(0xFF7E0E4B), Color(0xFFD92B6B), Color(0xFFAE86D3)] : [du.protein!, du.carbs!, du.fat!];
+    final colors = du.protein == null ? const [Color(0xFF7E0E4B), Color(0xFFD92B6B), Color(0xFFAE86D3)] : [du.protein!, du.carbs!, du.fat!];
     final spots = [Offset(w * 0.5, w * 0.38), Offset(w * 0.36, w * 0.62), Offset(w * 0.64, w * 0.62)];
     for (var i = 0; i < 3; i++) {
       canvas.drawCircle(spots[i], w * 0.17, Paint()..color = colors[i]);
@@ -211,200 +209,136 @@ class _MiniBerries extends CustomPainter {
   bool shouldRepaint(_MiniBerries old) => old.look != look;
 }
 
-class _Drawer extends StatelessWidget {
-  const _Drawer({required this.maxHeight, required this.onClose, required this.toast});
+/// The dock: a row of layout tabs and a row of colour tabs, with the sample day, the way out and a button to fold it
+/// back into the berry.
+class _Dock extends StatelessWidget {
+  const _Dock({required this.onClose, required this.toast});
 
-  final double maxHeight;
   final VoidCallback onClose;
   final void Function(String) toast;
 
   @override
   Widget build(BuildContext context) {
     final du = context.du;
-    final s = context.look;
+    Widget action(IconData icon, String label, VoidCallback onTap) =>
+        Semantics(label: label, child: IconButton(icon: Icon(icon, size: 20), visualDensity: VisualDensity.compact, onPressed: onTap));
     return Material(
       color: du.surface,
       elevation: 16,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(s.radius == 0 ? 0 : 24))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(context.look.radius == 0 ? 0 : 20)),
+        side: BorderSide(color: du.line),
+      ),
       clipBehavior: Clip.antiAlias,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxHeight),
-        child: SafeArea(
-          top: false,
-          child: ValueListenableBuilder<Look>(
-            valueListenable: Playground.chosen,
-            builder: (context, chosen, _) => Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 8, 4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Playground', style: context.text.headlineMedium),
-                            Text('Pick a look; the whole app wears it.', style: context.text.bodySmall),
-                          ],
-                        ),
-                      ),
-                      // no tooltip: this sits above the navigator, so there is no Overlay for one
-                      Semantics(
-                        label: 'Close',
-                        child: IconButton(icon: const Icon(LucideIcons.x), onPressed: onClose),
-                      ),
-                    ],
-                  ),
-                ),
-                Flexible(
-                  child: ListView(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                    children: [
-                      for (final look in Look.all) _LookTile(look: look, selected: look.id == chosen.id),
-                      const SizedBox(height: 8),
-                      Divider(color: du.line),
-                      ListTile(
-                        leading: const Icon(LucideIcons.utensils),
-                        title: const Text('Fill today with a sample day'),
-                        subtitle: const Text('Logs a dozen everyday foods (about 1,700 kcal), so the looks have something to show'),
-                        onTap: () async {
-                          final n = await fillSampleDay(AppScope.read(context));
-                          toast(n == 0 ? 'Foods are still loading; try again in a moment' : 'Logged $n foods to today');
-                          if (n > 0) onClose();
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(LucideIcons.logOut),
-                        title: const Text('Leave playground'),
-                        subtitle: const Text('Back to the default look; Targets → Playground brings it back'),
-                        onTap: () {
-                          onClose();
-                          Playground.setEnabled(false);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 10),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 6),
+              child: Row(children: [
+                Expanded(child: Text('Playground', style: context.text.titleMedium)),
+                action(LucideIcons.utensils, 'Fill today with a sample day', () async {
+                  final n = await fillSampleDay(AppScope.read(context));
+                  toast(n == 0 ? 'Foods are still loading; try again in a moment' : 'Logged $n foods to today');
+                }),
+                action(LucideIcons.logOut, 'Leave playground', () {
+                  onClose();
+                  Playground.setEnabled(false);
+                  toast('Left the playground. Targets → Playground brings it back.');
+                }),
+                action(LucideIcons.chevronDown, 'Fold the dock away', onClose),
+              ]),
             ),
-          ),
+            ValueListenableBuilder<DiaryLayout>(
+              valueListenable: Playground.chosenLayout,
+              builder: (context, chosen, _) => _TabRow(
+                label: 'Layout',
+                tabs: [
+                  for (final l in DiaryLayout.values) _Tab(text: l.label, selected: l == chosen, onTap: () => Playground.chooseLayout(l)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            ValueListenableBuilder<Look>(
+              valueListenable: Playground.chosen,
+              builder: (context, chosen, _) => _TabRow(
+                label: 'Colour',
+                tabs: [
+                  for (final l in Look.all) _Tab(text: l.name, selected: l.id == chosen.id, swatch: l, onTap: () => Playground.choose(l)),
+                ],
+              ),
+            ),
+          ]),
         ),
       ),
     );
   }
 }
 
-/// One look in the drawer: a small swatch painted in its own colours and face, its name and what it is.
-class _LookTile extends StatelessWidget {
-  const _LookTile({required this.look, required this.selected});
+class _TabRow extends StatelessWidget {
+  const _TabRow({required this.label, required this.tabs});
 
-  final Look look;
+  final String label;
+  final List<Widget> tabs;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 40,
+        child: Row(children: [
+          SizedBox(width: 68, child: Padding(padding: const EdgeInsets.only(left: 16), child: Text(label, style: context.text.labelMedium))),
+          Expanded(
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(right: 12),
+              itemCount: tabs.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 6),
+              itemBuilder: (_, i) => tabs[i],
+            ),
+          ),
+        ]),
+      );
+}
+
+/// One tab: filled in ink when it is the one on. A colour tab carries a dot of its scheme: its ground, ringed in its
+/// ink, with its accent inside.
+class _Tab extends StatelessWidget {
+  const _Tab({required this.text, required this.selected, required this.onTap, this.swatch});
+
+  final String text;
   final bool selected;
+  final VoidCallback onTap;
+  final Look? swatch;
 
   @override
   Widget build(BuildContext context) {
     final du = context.du;
-    final l = look.brightness == Brightness.dark ? look.dark : look.light;
-    final st = look.style;
-    final macros = [l.macro('protein'), l.macro('carbs'), l.macro('fat')];
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => Playground.choose(look),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: selected ? du.ink : du.line, width: selected ? 2 : 1),
-          ),
-          child: Row(
-            children: [
-              // the swatch: page, panel, the face, the macros and the accent
-              Container(
-                width: 76,
-                height: 64,
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: l.bg,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: du.line),
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: l.surface,
-                    borderRadius: BorderRadius.circular(math.min(st.radius, 10)),
-                    border: st.borderWidth > 0 ? Border.all(color: st.inkBorders ? l.ink : l.line, width: math.min(st.borderWidth, 1.5)) : null,
-                    boxShadow: st.shadow == ShadowKind.hard ? [BoxShadow(color: l.ink, offset: const Offset(2, 2))] : null,
-                  ),
-                  padding: const EdgeInsets.fromLTRB(6, 3, 6, 5),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Aa',
-                        style: TextStyle(
-                          fontFamily: st.titleFont,
-                          fontWeight: st.titleWeight,
-                          fontSize: 17,
-                          height: 1.2,
-                          color: l.ink,
-                        ),
-                      ),
-                      const Spacer(),
-                      Row(
-                        children: [
-                          for (final c in macros) ...[
-                            Container(
-                              width: 9,
-                              height: 9,
-                              decoration: BoxDecoration(color: c, shape: BoxShape.circle),
-                            ),
-                            const SizedBox(width: 2),
-                          ],
-                          const Spacer(),
-                          Container(
-                            width: 12,
-                            height: 6,
-                            decoration: BoxDecoration(color: l.accentStrong, borderRadius: BorderRadius.circular(3)),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      look.name,
-                      style: TextStyle(
-                        fontFamily: st.titleFont,
-                        fontWeight: st.titleWeight,
-                        fontSize: 19,
-                        color: du.ink,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(look.blurb, style: context.text.bodySmall),
-                  ],
-                ),
-              ),
-              if (selected)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Icon(LucideIcons.check, color: du.ink),
-                ),
-            ],
-          ),
+    final l = swatch?.light;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: EdgeInsets.only(left: swatch == null ? 14 : 8, right: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? du.ink : Colors.transparent,
+          borderRadius: BorderRadius.circular(context.look.radius == 0 ? 0 : 999),
+          border: Border.all(color: selected ? du.ink : du.lineStrong),
         ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (l != null) ...[
+            Container(
+              width: 20,
+              height: 20,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: l.bg, shape: BoxShape.circle, border: Border.all(color: selected ? du.surface : l.ink, width: 1.5)),
+              child: Container(width: 9, height: 9, decoration: BoxDecoration(color: l.carbs ?? l.accentStrong, shape: BoxShape.circle)),
+            ),
+            const SizedBox(width: 7),
+          ],
+          Text(text, style: context.text.labelLarge?.copyWith(fontSize: 14, color: selected ? du.surface : du.ink)),
+        ]),
       ),
     );
   }
