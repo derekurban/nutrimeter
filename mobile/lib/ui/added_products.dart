@@ -65,7 +65,7 @@ class OpenReviewsBanner extends StatelessWidget {
       valueListenable: LabelPipeline.running,
       builder: (context, running, _) => Padding(
         padding: const EdgeInsets.only(top: 8, bottom: 4),
-        child: Card(
+        child: Panel(
           clipBehavior: Clip.antiAlias,
           child: Column(children: [
             for (final r in open)
@@ -112,7 +112,7 @@ class AddedProductsPage extends StatelessWidget {
                   textAlign: TextAlign.center, style: TextStyle(color: context.muted)),
             )
           else
-            Card(
+            Panel(
               clipBehavior: Clip.antiAlias,
               child: Column(children: [
                 for (final r in all)

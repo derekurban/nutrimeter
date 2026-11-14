@@ -42,7 +42,7 @@ class FoodReviewCard extends StatelessWidget {
         builder: (context, ready, _) => ValueListenableBuilder(
           valueListenable: Backend.account,
           builder: (context, account, _) => ready != true
-              ? Card(
+              ? Panel(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Text(ready == null ? 'Connecting to food review…' : 'Food review is not available in this build.',
@@ -94,7 +94,7 @@ class _SignInState extends State<_SignIn> {
   @override
   Widget build(BuildContext context) {
     final waiting = _unpublished(AppScope.of(context));
-    return Card(
+    return Panel(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -153,7 +153,7 @@ class _SignedIn extends StatelessWidget {
     final state = AppScope.of(context);
     final synced = state.catalogue.syncedAt;
     final count = state.catalogue.records.length;
-    return Card(
+    return Panel(
       clipBehavior: Clip.antiAlias,
       child: Column(children: [
         ListTile(
@@ -273,7 +273,7 @@ class _SubmissionsPageState extends State<SubmissionsPage> {
                 style: TextStyle(color: context.muted, fontSize: 13),
               ),
             ),
-            Card(
+            Panel(
               clipBehavior: Clip.antiAlias,
               child: Column(children: [for (final s in remote) _RemoteTile(submission: s)]),
             ),
