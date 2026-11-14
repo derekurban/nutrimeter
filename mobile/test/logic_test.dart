@@ -90,12 +90,31 @@ void main() {
       expect(state.resolve('recipe:loop')!.nutrients['energy'], closeTo(50, 0.001));
     });
 
-    test('copying a meal and the recent list', () {
+    test('copying a day and the recent list', () {
       state.log(date: '2026-10-22', meal: Meal.lunch, food: oats, quantity: 1, unit: 'cup');
       state.log(date: '2026-10-22', meal: Meal.lunch, food: milk, quantity: 200, unit: 'g');
-      expect(state.copyMeal('2026-10-22', '2026-10-23', Meal.lunch), 2);
+      expect(state.copyDay('2026-10-22', '2026-10-23'), 2);
       expect(state.entriesFor('2026-10-23').map((e) => e.foodId), ['custom:oats', 'custom:milk']);
       expect(state.recent.first, 'custom:milk');
+    });
+
+    test('standouts: the defaults, picking and dropping, kept in a backup, and absent in old data', () {
+      expect(state.standouts, defaultStandouts);
+      state.toggleStandout('iron');
+      state.toggleStandout('sugars');
+      expect(state.standouts, ['fiber', 'satFat', 'sodium', 'iron']);
+      final copy = AppState.memory()..importJson(state.exportJson());
+      expect(copy.standouts, ['fiber', 'satFat', 'sodium', 'iron']);
+      // A backup from before the standouts has none listed: it gets the defaults.
+      final old = (jsonDecode(state.exportJson()) as Map<String, dynamic>)..remove('standouts');
+      expect((AppState.memory()..importJson(jsonEncode(old))).standouts, defaultStandouts);
+    });
+
+    test('clearing a day leaves the others', () {
+      state.log(date: '2026-10-22', meal: Meal.lunch, food: oats, quantity: 1, unit: 'cup');
+      state.log(date: '2026-10-23', meal: Meal.dinner, food: milk, quantity: 200, unit: 'g');
+      state.clearDay('2026-10-22');
+      expect(state.entries.map((e) => e.date), ['2026-10-23']);
     });
 
     test('export and import round-trip', () {

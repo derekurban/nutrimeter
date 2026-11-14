@@ -26,7 +26,7 @@ class LabelReadingCard extends StatelessWidget {
         final present = keys.keys.toSet();
         final first = state.readingSettings.choice(ReadingStep.firstRead, present);
         final added = state.labelReviews.length;
-        return Card(
+        return Panel(
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
@@ -97,14 +97,14 @@ class ReadingSettingsPage extends StatelessWidget {
               if (present.isEmpty)
                 Text('Add a key to choose models.', style: TextStyle(color: context.muted))
               else
-                Card(
+                Panel(
                   clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [for (final step in ReadingStep.values) _StepTile(step: step, present: present)],
                   ),
                 ),
               const SectionTitle('How sure is sure enough'),
-              Card(
+              Panel(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
                   child: Column(
@@ -134,7 +134,7 @@ class ReadingSettingsPage extends StatelessWidget {
                 ),
               ),
               const SectionTitle('Spending'),
-              Card(
+              Panel(
                 child: ListTile(
                   leading: const Icon(LucideIcons.receipt),
                   title: Text('${formatUsd(s.spentUsd)} spent on reading labels'),
@@ -211,7 +211,7 @@ class _KeyCardState extends State<_KeyCard> {
   Widget build(BuildContext context) {
     final saved = widget.saved;
     final du = context.du;
-    return Card(
+    return Panel(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
         child: Column(

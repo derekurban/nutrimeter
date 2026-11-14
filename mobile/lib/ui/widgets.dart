@@ -9,51 +9,68 @@ import '../logic/foods.dart';
 import '../services/taxonomy_asset.dart';
 import 'theme.dart';
 
-/// A horizontal progress bar with its percentage printed inside. Gray while it fills; the accent once a target is met;
-/// danger once a limit is passed ([over]). A limit ([isLimit]) stays gray until then.
+/// A horizontal progress bar. A target fills in [color] (gray by default) and turns the accent once it is met; a
+/// limit ([isLimit]) stays as it is until it is passed ([over]), then turns danger. A bar 12 or taller prints its
+/// percentage inside; a thinner one prints it beside itself, unless [showLabel] is off because the figures sit next
+/// to the bar already.
 class ProgressBar extends StatelessWidget {
-  const ProgressBar({super.key, required this.fraction, this.isLimit = false, this.over = false, this.height = 16});
+  const ProgressBar({super.key, required this.fraction, this.isLimit = false, this.over = false, this.height = 12, this.color, this.showLabel = true});
 
   final double fraction;
   final bool isLimit;
   final bool over;
   final double height;
+  final Color? color;
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
     final du = context.du;
     final pct = fraction.isFinite ? (fraction * 100).round() : 0;
     final met = !isLimit && pct >= 100; // as printed, so "100%" is never gray
-    final fill = over ? du.danger : met ? du.accentStrong : du.dataNeutral;
-    final onFill = (over || met) && fraction >= 0.5;
-    return Semantics(
-      value: '$pct%',
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: SizedBox(
-          height: height,
-          child: Stack(fit: StackFit.expand, children: [
-            ColoredBox(color: context.track),
-            FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: fraction.isFinite ? fraction.clamp(0, 1) : 0,
-              child: ColoredBox(color: fill),
-            ),
-            Center(
-              child: Text('$pct%',
-                  style: context.text.labelSmall?.copyWith(
-                    fontSize: 10.5,
-                    height: 1,
-                    letterSpacing: 0,
-                    fontWeight: FontWeight.w600,
-                    fontFeatures: tabular,
-                    color: onFill ? (over ? du.surface : du.onAccent) : du.ink,
-                  )),
-            ),
-          ]),
-        ),
+    final fill = over ? du.danger : met ? du.accentStrong : (color ?? du.dataNeutral);
+    final width = fraction.isFinite ? fraction.clamp(0.0, 1.0) : 0.0;
+    final label = TextStyle(fontFamily: appFont, fontSize: 10.5, height: 1, letterSpacing: 0, fontWeight: FontWeight.w600, fontFeatures: tabular);
+    // Past halfway the percentage sits on the fill, so it takes whichever of white and near-black reads on it (the
+    // calories' bar is ink: dark by day, light at night); before that it sits on the track.
+    final onFill = fraction >= 0.5;
+    final labelColor = !onFill ? du.ink : ThemeData.estimateBrightnessForColor(fill) == Brightness.dark ? Colors.white : const Color(0xFF151314);
+    final bar = ClipRRect(
+      borderRadius: BorderRadius.circular(height / 2),
+      child: SizedBox(
+        height: height,
+        child: Stack(fit: StackFit.expand, children: [
+          ColoredBox(color: context.track),
+          FractionallySizedBox(alignment: Alignment.centerLeft, widthFactor: width, child: ColoredBox(color: fill)),
+          if (height >= 12 && showLabel) Center(child: Text('$pct%', style: label.copyWith(color: labelColor))),
+        ]),
       ),
     );
+    return Semantics(
+      value: '$pct%',
+      child: height >= 12 || !showLabel
+          ? bar
+          : Row(children: [
+              Expanded(child: bar),
+              SizedBox(width: 40, child: Text('$pct%', textAlign: TextAlign.right, style: label.copyWith(color: over ? du.danger : du.inkSecondary))),
+            ]),
+    );
+  }
+}
+
+/// A surface: a soft panel with no outline. Stands in for [Card] everywhere.
+class Panel extends StatelessWidget {
+  const Panel({super.key, required this.child, this.clipBehavior = Clip.none, this.color});
+
+  final Widget child;
+  final Clip clipBehavior;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget body = Material(type: MaterialType.transparency, child: child);
+    if (clipBehavior != Clip.none) body = ClipRRect(borderRadius: BorderRadius.circular(panelRadius), clipBehavior: clipBehavior, child: body);
+    return DecoratedBox(decoration: panelDecoration(context, color: color), child: body);
   }
 }
 
@@ -99,6 +116,7 @@ class _RingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke;
     canvas.drawArc(rect, 0, math.pi * 2, false, paint..color = track);
+    paint.strokeCap = StrokeCap.round;
     if (total <= 0) return;
     var start = -math.pi / 2;
     var used = 0.0;
@@ -115,55 +133,7 @@ class _RingPainter extends CustomPainter {
   bool shouldRepaint(_RingPainter old) => old.total != total || old.segments != segments || old.track != track;
 }
 
-List<({String key, double kcal})> macroEnergy(Nutrients n) =>
-    [for (final m in macroKeys) (key: m, kcal: (n[m] ?? 0) * kcalPerGram[m]!)];
-
 const macroLabels = {'protein': 'Protein', 'carbs': 'Carbs', 'fat': 'Fat'};
-
-/// Energy in the middle, the macro split around it, and a legend.
-class MacroDonut extends StatelessWidget {
-  const MacroDonut({super.key, required this.nutrients, this.size = 96});
-
-  final Nutrients nutrients;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final parts = macroEnergy(nutrients);
-    final total = parts.fold(0.0, (a, p) => a + p.kcal);
-    return Row(children: [
-      Ring(
-        size: size,
-        stroke: size / 7,
-        total: total,
-        segments: [for (final p in parts) RingSegment(p.kcal, context.du.macro(p.key))],
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(formatAmount(nutrients['energy'] ?? 0, 'kcal'), style: context.text.titleLarge?.copyWith(fontWeight: FontWeight.w300, fontFeatures: tabular)),
-          Text('kcal', style: context.text.labelSmall),
-        ]),
-      ),
-      const SizedBox(width: 18),
-      Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          for (final p in parts)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(children: [
-                Container(width: 10, height: 10, decoration: BoxDecoration(color: context.du.macro(p.key), borderRadius: BorderRadius.circular(3))),
-                const SizedBox(width: 8),
-                Expanded(child: Text(macroLabels[p.key]!)),
-                Text(total > 0 ? '${(p.kcal / total * 100).round()}%' : '0%', style: const TextStyle(fontWeight: FontWeight.w500, fontFeatures: tabular)),
-                SizedBox(
-                  width: 64,
-                  child: Text('${formatAmount(nutrients[p.key] ?? 0)} g', textAlign: TextAlign.right, style: TextStyle(color: context.muted, fontFeatures: tabular)),
-                ),
-              ]),
-            ),
-        ]),
-      ),
-    ]);
-  }
-}
 
 /// A catalogue food's picture (its category's, else its subgroup's, else its group's; or a product photo saved by an
 /// older version), an initial on a sunk tile otherwise. Taxonomy pictures come from the app's bundle when it has
@@ -179,19 +149,20 @@ class FoodThumb extends StatelessWidget {
     final f = food;
     final url = f?.imageUrl;
     final du = context.du;
+    final corner = BorderRadius.circular(math.min(10, size / 4));
     final letter = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: du.sunk, borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: du.sunk, borderRadius: corner),
       child: Text(
         (f?.name.isNotEmpty ?? false) ? f!.name.characters.first.toUpperCase() : '?',
-        style: TextStyle(fontFamily: titleFont, fontSize: size * 0.42, fontWeight: FontWeight.w500, color: du.inkSecondary),
+        style: TextStyle(fontFamily: appFont, fontSize: size * 0.42, fontWeight: FontWeight.w600, color: du.inkSecondary),
       ),
     );
     if (url == null) return letter;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: corner,
       child: Container(
         width: size,
         height: size,

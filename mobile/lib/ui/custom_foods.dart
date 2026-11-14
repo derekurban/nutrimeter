@@ -16,11 +16,11 @@ Future<Food?> editCustomFood(BuildContext context, {Food? food, String? barcode}
 /// Logs a known food straight to today's diary through its detail page.
 Future<void> logFoodToday(BuildContext context, Food food) async {
   final result = await Navigator.of(context).push<PickResult>(MaterialPageRoute(
-    builder: (_) => FoodDetailPage(food: food, actionLabel: 'Add to diary', meal: MealLabel.forTime(DateTime.now())),
+    builder: (_) => FoodDetailPage(food: food, actionLabel: 'Add to diary'),
   ));
   if (result == null || !context.mounted) return;
-  AppScope.read(context).log(date: isoDate(DateTime.now()), meal: result.meal!, food: result.food, quantity: result.quantity, unit: result.unit);
-  showToast(context, 'Added ${result.food.name} to ${result.meal!.label}');
+  AppScope.read(context).log(date: isoDate(DateTime.now()), meal: MealLabel.forTime(DateTime.now()), food: result.food, quantity: result.quantity, unit: result.unit);
+  showToast(context, 'Added ${result.food.name}');
 }
 
 class CustomFoodsPage extends StatelessWidget {

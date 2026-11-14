@@ -11,7 +11,7 @@ In-app updates and links are two small method channels in `MainActivity.kt`.
 |---|---|
 | `lib/data/nutrients.dart` | The tracked nutrients: units, groups, adult DRIs and limits, scaling helpers |
 | `lib/data/model.dart` | Foods, servings, diary entries, recipes, profile and targets, with hand-written JSON |
-| `lib/data/store.dart` | `AppState`: diary, saved/custom foods, recipes, targets, recent, the catalogue cache and label reviews; resolving ids (through aliases); persistence, export/import |
+| `lib/data/store.dart` | `AppState`: diary, saved/custom foods, recipes, targets, standouts, recent, the catalogue cache and label reviews; resolving ids (through aliases); persistence, export/import |
 | `lib/logic/foods.dart` | Resolving foods, servings and grams, recipe totals (recipes can nest; cycles are cut) |
 | `lib/logic/barcode.dart` | Barcodes to GTIN-14: check digits, padding, UPC-E expansion |
 | `lib/logic/targets.dart` | Mifflin–St Jeor BMR, energy and macro targets, overrides, progress |
@@ -28,17 +28,40 @@ In-app updates and links are two small method channels in `MainActivity.kt`.
 | `lib/data/label_review.dart` | A product being read and reviewed on the phone: photos, every model call, readings, decisions, publish state |
 | `lib/logic/update.dart` | Updates and feedback, the pure part: reading GitHub releases, picking one, comparing versions, issue links |
 | `lib/services/platform.dart` | The Android calls behind updates and links (`MainActivity.kt`, `UpdateReceiver.kt`) |
-| `lib/ui/` | `diary` (home), `food_picker` + `food_detail` (search and log), `scanner`, `product_flow` (a new find: photos, reading, review), `label_review_screen` (the review against the photos), `added_products` (what was added from labels), `reading_settings_page` (keys, models, the add-a-key prompt), `review` (sign-in card, submissions history), `recipes`, `custom_foods`, `settings` (targets, food review, data, updates, feedback, attribution), `updates` (the updater, its panel and trail, feedback links), shared `widgets`, `nutrition` panels, `theme` (below) |
+| `lib/ui/` | `diary` (home, and the nutrients page), `food_picker` + `food_detail` (search and log), `scanner`, `product_flow` (a new find: photos, reading, review), `label_review_screen` (the review against the photos), `added_products` (what was added from labels), `reading_settings_page` (keys, models, the add-a-key prompt), `review` (sign-in card, submissions history), `recipes`, `custom_foods`, `settings` (targets, food review, data, updates, feedback, attribution), `updates` (the updater, its panel and trail, feedback links), shared `widgets`, `meter` (the nutrition panel, standout bars and nutrient grid) and `theme` (both below) |
 | `test/` | `logic_test.dart` (targets, recipes, the real CNF asset, backups), `barcode_test.dart` (GTIN normalisation), `catalogue_test.dart` (record → food, aliases, old saved foods, products kept for the retired desktop queue becoming label reviews, submission status, build config, barcode lookup, sync throttle, a diary row filling in after review), `label_reading_test.dart` and `llm_test.dart` (label reading), `reading_key_test.dart` (no reading without a key), `update_test.dart` (releases, versions, issue forms) and `widget_test.dart` (log a food end to end; a search miss leads to the photos screen) |
 | `tool/` | `icons.py` (below) |
 
 ## Design
 
-The UI uses [derekurban/design-system](https://github.com/derekurban/design-system) v0.1.0, the same way easyday does:
-`lib/ui/theme.dart` carries its tokens (`context.du`) as a Material theme, the type is Albert Sans for titles and Wix
-Madefor Text for everything else (`assets/fonts/`, OFL), and icons are Lucide. Data follows the system's rules: series
-are gray, the three macros told apart by lightness (protein darkest, fat lightest); a bar turns accent green when its
-target is met and danger red when a limit is passed. Colour never decorates.
+The app is a meter, not a meal log. What matters is a day's total in four buckets (calories, protein, carbs, fat) and
+a few **standout** nutrients the person picks; every other nutrient is one tap away. Which meal a food belonged to
+does not matter, so nothing asks for or shows meals (a food is still stored with the meal for the time it was logged:
+the data model and old backups keep the field).
+
+- **The diary** (`lib/ui/diary.dart`) is a top section and the day's food under it as one list. The top section is
+  one panel: the calories with a bar, a ring for each macro, and the standouts as bars. Tapping it opens the
+  **nutrients page**: the standouts again, with "Choose", and then one shaded cell per nutrient. The food list's ⋮
+  menu saves the day as a recipe, copies the previous day, or clears the day.
+- **The same pieces everywhere** (`lib/ui/meter.dart`): a food's page and a recipe show their portion with the same
+  panel (calories, macro rings, "% of your day") and the same grid, against the day's targets.
+- **The grid** is outlined as Carbs, Fats, Vitamins, Minerals and Other, each alphabetical; Targets lists the
+  nutrient targets in the same outline. A cell deepens toward the accent as its target fills and turns the full
+  accent at 100%; a limit stays gray until it is passed, then danger. Bars follow the same rule. Tapping a cell shows
+  its numbers and makes it a standout or not.
+- **Standouts** are part of the data file and of backups (`standouts`; fibre, sugars, saturated fat and sodium until
+  picked), changed from the nutrients page, any cell, or Targets → Standouts.
+- **The theme** (`lib/ui/theme.dart`) is one design in light and dark, following the phone: warm white or warm black,
+  near-black ink, and the berry icon's colours as the only colour: plum, raspberry and lavender for protein, carbs
+  and fat, leaf green for what you tap and a target met. Everything is set in Geist (`assets/fonts/`, OFL), heavy for
+  titles and figures. Colours are tokens (`context.du`); surfaces are `Panel`s (soft, no outline), not `Card`s. Icons
+  are Lucide.
+
+This came out of the 2026-11 facelift, settled on the phone over seven rounds in a playground mode since removed
+(the git history has it): painted looks, then structure split from colour, then the meter model, then this
+arrangement, which is Derek's own. Rejected on the way: coloured grounds, outlined "sticker" panels, thin or italic
+serifs, a dark-only look, concept-first screens (a Nutrition Facts panel, a receipt), a per-meal timeline, radial
+charts, a ledger table, and the breakdown unfolding in place or as a sheet instead of a page.
 
 ## Dev loop
 

@@ -18,12 +18,11 @@ Future<PickResult?> pickFood(
   BuildContext context, {
   required String title,
   required String actionLabel,
-  Meal? meal,
   Set<String> exclude = const {},
   bool scan = false,
 }) =>
     Navigator.of(context).push<PickResult>(MaterialPageRoute(
-      builder: (_) => FoodPickerPage(title: title, actionLabel: actionLabel, meal: meal, exclude: exclude, scanFirst: scan),
+      builder: (_) => FoodPickerPage(title: title, actionLabel: actionLabel, exclude: exclude, scanFirst: scan),
     ));
 
 /// Everything is searched on the device as you type: your foods and recipes, the synced catalogue, products waiting
@@ -31,11 +30,10 @@ Future<PickResult?> pickFood(
 /// product still waiting for review) is checked against a fresh catalogue before anything else. Anything not found
 /// can be added from photos and logged at once.
 class FoodPickerPage extends StatefulWidget {
-  const FoodPickerPage({super.key, required this.title, required this.actionLabel, this.meal, this.exclude = const {}, this.scanFirst = false});
+  const FoodPickerPage({super.key, required this.title, required this.actionLabel, this.exclude = const {}, this.scanFirst = false});
 
   final String title;
   final String actionLabel;
-  final Meal? meal;
   final Set<String> exclude;
   final bool scanFirst;
 
@@ -115,7 +113,7 @@ class _FoodPickerPageState extends State<FoodPickerPage> {
 
   Future<void> _open(Food food, {bool justAdded = false}) async {
     final result = await Navigator.of(context).push<PickResult>(MaterialPageRoute(
-      builder: (_) => FoodDetailPage(food: food, actionLabel: widget.actionLabel, meal: widget.meal, justAdded: justAdded),
+      builder: (_) => FoodDetailPage(food: food, actionLabel: widget.actionLabel, justAdded: justAdded),
     ));
     if (result != null && mounted) Navigator.of(context).pop(result);
   }

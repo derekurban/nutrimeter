@@ -21,6 +21,7 @@ class NutrimeterApp extends StatelessWidget {
         child: MaterialApp(
           title: 'Nutrimeter',
           debugShowCheckedModeBanner: false,
+          // One design in two lights; the phone's setting picks.
           theme: buildTheme(Brightness.light),
           darkTheme: buildTheme(Brightness.dark),
           home: const AutoUpdater(child: HomeShell()),

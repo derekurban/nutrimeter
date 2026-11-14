@@ -18,6 +18,9 @@ import 'model.dart';
 
 /// All app state. Persisted as one JSON file in the app's private storage, written shortly after each change. The
 /// catalogue cache, some 17,000 records, has a file of its own beside it ([catalogueFile]), written only when it syncs.
+/// The standouts before any are picked.
+const defaultStandouts = ['fiber', 'sugars', 'satFat', 'sodium'];
+
 class AppState extends ChangeNotifier implements FoodLibrary {
   AppState._(this._file, this.cnf);
 
@@ -45,6 +48,10 @@ class AppState extends ChangeNotifier implements FoodLibrary {
 
   /// Recently logged food ids, newest first.
   List<String> recent = [];
+
+  /// The standout nutrients, by key, in the order they were picked: the ones shown on the diary beside calories,
+  /// protein, carbs and fat.
+  List<String> standouts = defaultStandouts;
 
   /// The published food catalogue, synced from the backend while signed in. A cache: not part of backups.
   Catalogue catalogue = Catalogue.empty;
@@ -243,16 +250,16 @@ class AppState extends ChangeNotifier implements FoodLibrary {
     _changed();
   }
 
-  /// Copies a meal from one day to another; returns how many items were copied.
-  int copyMeal(String fromDate, String toDate, Meal meal) {
+  /// Copies a day's food to another day; returns how many items were copied.
+  int copyDay(String fromDate, String toDate) {
     final now = DateTime.now();
-    final source = entries.where((e) => e.date == fromDate && e.meal == meal).toList();
+    final source = entriesFor(fromDate);
     addEntries([
       for (var i = 0; i < source.length; i++)
         DiaryEntry(
           id: newId(),
           date: toDate,
-          meal: meal,
+          meal: source[i].meal,
           foodId: source[i].foodId,
           quantity: source[i].quantity,
           unit: source[i].unit,
@@ -263,8 +270,14 @@ class AppState extends ChangeNotifier implements FoodLibrary {
     return source.length;
   }
 
-  void clearMeal(String date, Meal meal) {
-    entries.removeWhere((e) => e.date == date && e.meal == meal);
+  void clearDay(String date) {
+    entries.removeWhere((e) => e.date == date);
+    _changed();
+  }
+
+  /// Makes a nutrient a standout, or stops it being one.
+  void toggleStandout(String key) {
+    standouts = standouts.contains(key) ? [for (final k in standouts) if (k != key) k] : [...standouts, key];
     _changed();
   }
 
@@ -402,6 +415,7 @@ class AppState extends ChangeNotifier implements FoodLibrary {
     entries = [];
     targets = const Targets();
     recent = [];
+    standouts = defaultStandouts;
     _changed();
   }
 
@@ -430,6 +444,7 @@ class AppState extends ChangeNotifier implements FoodLibrary {
         'entries': [for (final e in entries) e.toJson()],
         'targets': targets.toJson(),
         'recent': recent,
+        'standouts': standouts,
         if (!backup) 'labelReviews': [for (final r in labelReviews.values) r.toJson()],
         'readingSettings': readingSettings.toJson(),
       };
@@ -442,6 +457,8 @@ class AppState extends ChangeNotifier implements FoodLibrary {
     entries = list('entries').map(DiaryEntry.fromJson).toList();
     targets = j['targets'] == null ? const Targets() : Targets.fromJson((j['targets'] as Map).cast<String, dynamic>());
     recent = ((j['recent'] as List?) ?? const []).cast<String>();
+    // Absent in data from before the standouts: the defaults.
+    standouts = switch (j['standouts']) { final List l => [for (final k in l) if (k is String) k], _ => defaultStandouts };
     // Older versions kept the catalogue cache here.
     if (j['catalogue'] is Map) catalogue = Catalogue.fromJson((j['catalogue'] as Map).cast<String, dynamic>());
     catalogue = _withProvisionalNames(catalogue);

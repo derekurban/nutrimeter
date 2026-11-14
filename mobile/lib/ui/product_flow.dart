@@ -31,17 +31,16 @@ Future<Food?> openProductFlow(BuildContext context, {Gtin? barcode, String? name
 
 /// Picks a review up where it stands (from the diary or the list of added products); once it is accepted, opens the
 /// product to log it on [date] (today by default).
-Future<void> resumeReview(BuildContext context, LabelReview review, {String? date, Meal? meal}) async {
+Future<void> resumeReview(BuildContext context, LabelReview review, {String? date}) async {
   final state = AppScope.read(context);
   final food = await openProductFlow(context, reviewId: review.id);
   if (food == null || !context.mounted) return;
-  final m = meal ?? MealLabel.forTime(DateTime.now());
   final result = await Navigator.of(context).push<PickResult>(MaterialPageRoute(
-    builder: (_) => FoodDetailPage(food: food, actionLabel: 'Add to diary', meal: m, justAdded: food.source == FoodSource.catalogue),
+    builder: (_) => FoodDetailPage(food: food, actionLabel: 'Add to diary', justAdded: food.source == FoodSource.catalogue),
   ));
   if (result == null || !context.mounted) return;
-  state.log(date: date ?? isoDate(DateTime.now()), meal: result.meal ?? m, food: result.food, quantity: result.quantity, unit: result.unit);
-  showToast(context, 'Added ${result.food.name} to ${(result.meal ?? m).label}');
+  state.log(date: date ?? isoDate(DateTime.now()), meal: MealLabel.forTime(DateTime.now()), food: result.food, quantity: result.quantity, unit: result.unit);
+  showToast(context, 'Added ${result.food.name}');
 }
 
 class ProductFlowPage extends StatefulWidget {
@@ -514,7 +513,7 @@ class _Reading extends StatelessWidget {
         Text(r.displayName, style: context.text.titleMedium),
         if (r.rawBarcode != null) Text(r.rawBarcode!, style: TextStyle(color: du.inkTertiary, fontSize: 12.5, fontFeatures: tabular)),
         const SizedBox(height: 14),
-        Card(
+        Panel(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Column(children: [
@@ -560,7 +559,7 @@ class _Reading extends StatelessWidget {
         ],
         if (conf != null) ...[
           const SizedBox(height: 12),
-          Card(
+          Panel(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
