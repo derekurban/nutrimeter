@@ -251,10 +251,12 @@ class AppState extends ChangeNotifier implements FoodLibrary {
   }
 
   /// Copies a day's food to another day; returns how many items were copied.
-  int copyDay(String fromDate, String toDate) {
+  int copyDay(String fromDate, String toDate) => copyEntries(entriesFor(fromDate), toDate).length;
+
+  /// Logs copies of [source] on [toDate], as new entries in the same order; returns the copies.
+  List<DiaryEntry> copyEntries(List<DiaryEntry> source, String toDate) {
     final now = DateTime.now();
-    final source = entriesFor(fromDate);
-    addEntries([
+    final copies = [
       for (var i = 0; i < source.length; i++)
         DiaryEntry(
           id: newId(),
@@ -266,9 +268,27 @@ class AppState extends ChangeNotifier implements FoodLibrary {
           grams: source[i].grams,
           createdAt: now.add(Duration(milliseconds: i)),
         ),
-    ]);
-    return source.length;
+    ];
+    addEntries(copies);
+    return copies;
   }
+
+  /// A logged food copied to be pasted on any day: its food and portion. Kept until another is copied or it is
+  /// cleared, so it can be pasted more than once. In memory only: not saved, not part of backups.
+  DiaryEntry? clipboard;
+
+  void copyToClipboard(DiaryEntry entry) {
+    clipboard = entry;
+    notifyListeners();
+  }
+
+  void clearClipboard() {
+    clipboard = null;
+    notifyListeners();
+  }
+
+  /// Logs the copied food on [date]; null when nothing is copied.
+  DiaryEntry? paste(String date) => switch (clipboard) { final c? => copyEntries([c], date).single, null => null };
 
   void clearDay(String date) {
     entries.removeWhere((e) => e.date == date);
@@ -416,6 +436,7 @@ class AppState extends ChangeNotifier implements FoodLibrary {
     targets = const Targets();
     recent = [];
     standouts = defaultStandouts;
+    clipboard = null;
     _changed();
   }
 
