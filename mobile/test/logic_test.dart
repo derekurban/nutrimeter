@@ -98,6 +98,25 @@ void main() {
       expect(state.recent.first, 'custom:milk');
     });
 
+    test('copying one food, and pasting it on any day', () {
+      final milkEntry = state.log(date: '2026-10-22', meal: Meal.lunch, food: milk, quantity: 200, unit: 'g');
+      final copy = state.copyEntries([milkEntry], '2026-10-25').single;
+      expect(copy.id, isNot(milkEntry.id));
+      expect((copy.date, copy.foodId, copy.quantity, copy.unit, copy.grams), ('2026-10-25', 'custom:milk', 200.0, 'g', 200.0));
+
+      expect(state.paste('2026-10-23'), isNull);
+      state.copyToClipboard(milkEntry);
+      state.paste('2026-10-23');
+      state.paste('2026-10-24');
+      expect(state.entriesFor('2026-10-23').single.grams, 200);
+      expect(state.entriesFor('2026-10-24').single.foodId, 'custom:milk');
+      expect(state.entriesFor('2026-10-22'), hasLength(1));
+      // The copied food is never saved.
+      expect(state.exportJson(), isNot(contains('clipboard')));
+      state.clearClipboard();
+      expect(state.paste('2026-10-23'), isNull);
+    });
+
     test('standouts: the defaults, picking and dropping, kept in a backup, and absent in old data', () {
       expect(state.standouts, defaultStandouts);
       state.toggleStandout('iron');

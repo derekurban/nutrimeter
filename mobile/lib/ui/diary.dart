@@ -4,7 +4,10 @@
 // There are no meals: what matters is the day's total, not which meal a food belonged to. A food is still stored
 // with the meal for the time it was logged (the data model and old backups keep the field), but it is never asked for
 // or shown.
+//
+// Swiping a logged food to the right shows its actions: delete it, copy it to today, or copy it to paste on any day.
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/model.dart';
@@ -29,6 +32,15 @@ class DiaryPage extends StatefulWidget {
 
 class _DiaryPageState extends State<DiaryPage> {
   String _date = isoDate(DateTime.now());
+
+  /// The logged food whose actions are showing, so opening one row shuts the others.
+  final _openRow = ValueNotifier<Object?>(null);
+
+  @override
+  void dispose() {
+    _openRow.dispose();
+    super.dispose();
+  }
 
   String get _today => isoDate(DateTime.now());
 
@@ -64,14 +76,36 @@ class _DiaryPageState extends State<DiaryPage> {
   void _remove(DiaryEntry entry) {
     final state = AppScope.read(context);
     state.removeEntry(entry.id);
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        behavior: SnackBarBehavior.floating,
-        content: Text('Removed ${state.resolve(entry.foodId)?.name ?? 'entry'}'),
-        action: SnackBarAction(label: 'Undo', onPressed: () => state.addEntries([entry])),
-      ));
+    _undoable('Removed ${_name(entry)}', () => state.addEntries([entry]));
   }
+
+  void _copyToToday(DiaryEntry entry) {
+    final state = AppScope.read(context);
+    final copy = state.copyEntries([entry], _today).single;
+    _undoable('Copied ${_name(entry)} to today', () => state.removeEntry(copy.id));
+  }
+
+  void _copy(DiaryEntry entry) {
+    AppScope.read(context).copyToClipboard(entry);
+    showToast(context, 'Copied ${_name(entry)}. Paste it on any day.');
+  }
+
+  void _paste() {
+    final state = AppScope.read(context);
+    final copy = state.paste(_date);
+    if (copy == null) return;
+    _undoable('Pasted ${_name(copy)}', () => state.removeEntry(copy.id));
+  }
+
+  String _name(DiaryEntry entry) => AppScope.read(context).resolve(entry.foodId)?.name ?? 'entry';
+
+  void _undoable(String message, VoidCallback undo) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      content: Text(message),
+      action: SnackBarAction(label: 'Undo', onPressed: undo),
+    ));
 
   Future<void> _dayAction(String action, List<DiaryEntry> entries) async {
     final state = AppScope.read(context);
@@ -181,7 +215,19 @@ class _DiaryPageState extends State<DiaryPage> {
                 ),
               ]),
             ),
-            for (final e in entries) _EntryTile(entry: e, onTap: () => _edit(e), onRemove: () => _remove(e)),
+            for (final e in entries)
+              _SwipeActions(
+                key: ValueKey(e.id),
+                id: e.id,
+                openRow: _openRow,
+                actions: [
+                  _SwipeAction('Delete', LucideIcons.trash2, context.du.danger, context.du.surface, () => _remove(e)),
+                  _SwipeAction('Copy to today', LucideIcons.calendarPlus, context.du.accentStrong, context.du.onAccent, () => _copyToToday(e)),
+                  _SwipeAction('Copy', LucideIcons.copy, context.du.sunk, context.du.ink, () => _copy(e)),
+                ],
+                child: _EntryTile(entry: e, onTap: () => _edit(e)),
+              ),
+            if (state.clipboard case final copied?) _PasteTile(entry: copied, onPaste: _paste, onClear: state.clearClipboard),
             ListTile(
               dense: true,
               leading: Icon(LucideIcons.plus, color: context.du.accentText),
@@ -195,39 +241,197 @@ class _DiaryPageState extends State<DiaryPage> {
   }
 }
 
-/// One logged food: its picture, name, portion and energy. Tap to change it, swipe to remove it.
+/// One logged food: its picture, name, portion and energy. Tap to change it; swipe it right for its actions.
 class _EntryTile extends StatelessWidget {
-  const _EntryTile({required this.entry, required this.onTap, required this.onRemove});
+  const _EntryTile({required this.entry, required this.onTap});
 
   final DiaryEntry entry;
   final VoidCallback onTap;
-  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
     final food = state.resolve(entry.foodId);
     final n = portionNutrients(state, entry);
-    return Dismissible(
-      key: ValueKey(entry.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        color: context.du.danger,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: Icon(LucideIcons.trash2, color: context.du.surface),
+    return ListTile(
+      leading: FoodThumb(food: food),
+      title: Text(food?.name ?? 'Deleted food', maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        '${portionLabel(entry)} · P ${formatAmount(n['protein'] ?? 0)} C ${formatAmount(n['carbs'] ?? 0)} F ${formatAmount(n['fat'] ?? 0)}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
-      onDismissed: (_) => onRemove(),
-      child: ListTile(
-        leading: FoodThumb(food: food),
-        title: Text(food?.name ?? 'Deleted food', maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          '${portionLabel(entry)} · P ${formatAmount(n['protein'] ?? 0)} C ${formatAmount(n['carbs'] ?? 0)} F ${formatAmount(n['fat'] ?? 0)}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+      trailing: Text('${formatAmount(n['energy'] ?? 0, 'kcal')} kcal', style: const TextStyle(fontWeight: FontWeight.w600)),
+      onTap: onTap,
+    );
+  }
+}
+
+/// The copied food, under the day's food while one is copied: tap to log it on this day, or clear it.
+class _PasteTile extends StatelessWidget {
+  const _PasteTile({required this.entry, required this.onPaste, required this.onClear});
+
+  final DiaryEntry entry;
+  final VoidCallback onPaste;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final food = AppScope.of(context).resolve(entry.foodId);
+    return ListTile(
+      dense: true,
+      leading: Icon(LucideIcons.clipboardPaste, color: context.du.accentText),
+      title: Text('Paste ${food?.name ?? 'food'}',
+          maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: context.du.accentText, fontWeight: FontWeight.w600)),
+      subtitle: Text(portionLabel(entry), maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: IconButton(icon: const Icon(LucideIcons.x, size: 18), tooltip: 'Clear the copied food', onPressed: onClear),
+      onTap: onPaste,
+    );
+  }
+}
+
+class _SwipeAction {
+  const _SwipeAction(this.label, this.icon, this.background, this.foreground, this.onPressed);
+
+  final String label;
+  final IconData icon;
+  final Color background, foreground;
+  final VoidCallback onPressed;
+}
+
+/// A row that slides right to show [actions] behind it. It snaps open or shut when let go; tapping an action, the
+/// row, or opening another row in the same [openRow] group shuts it.
+class _SwipeActions extends StatefulWidget {
+  const _SwipeActions({super.key, required this.id, required this.openRow, required this.actions, required this.child});
+
+  final Object id;
+  final ValueNotifier<Object?> openRow;
+  final List<_SwipeAction> actions;
+  final Widget child;
+
+  @override
+  State<_SwipeActions> createState() => _SwipeActionsState();
+}
+
+class _SwipeActionsState extends State<_SwipeActions> with SingleTickerProviderStateMixin {
+  static const _actionWidth = 76.0;
+
+  late final _slide = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
+
+  double get _width => widget.actions.length * _actionWidth;
+
+  /// +1 when sliding right shows the actions, -1 in a right-to-left layout.
+  double get _sign => Directionality.of(context) == TextDirection.rtl ? -1 : 1;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.openRow.addListener(_onOpenRow);
+  }
+
+  @override
+  void didUpdateWidget(_SwipeActions old) {
+    super.didUpdateWidget(old);
+    if (old.openRow != widget.openRow) {
+      old.openRow.removeListener(_onOpenRow);
+      widget.openRow.addListener(_onOpenRow);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.openRow.removeListener(_onOpenRow);
+    _slide.dispose();
+    super.dispose();
+  }
+
+  void _onOpenRow() {
+    if (widget.openRow.value != widget.id && _slide.value > 0) _slide.animateTo(0, curve: Curves.easeOut);
+  }
+
+  void _open() {
+    widget.openRow.value = widget.id;
+    _slide.animateTo(1, curve: Curves.easeOut);
+  }
+
+  void _close() {
+    if (widget.openRow.value == widget.id) widget.openRow.value = null;
+    _slide.animateTo(0, curve: Curves.easeOut);
+  }
+
+  void _dragStart(DragStartDetails _) {
+    _slide.stop();
+    widget.openRow.value = widget.id;
+  }
+
+  void _dragUpdate(DragUpdateDetails d) => _slide.value += _sign * (d.primaryDelta ?? 0) / _width;
+
+  void _dragEnd(DragEndDetails d) {
+    final v = _sign * (d.primaryVelocity ?? 0);
+    if (v > 300 || (v > -300 && _slide.value > 0.5)) {
+      _open();
+    } else {
+      _close();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      customSemanticsActions: {
+        for (final a in widget.actions) CustomSemanticsAction(label: a.label): a.onPressed,
+      },
+      child: GestureDetector(
+        onHorizontalDragStart: _dragStart,
+        onHorizontalDragUpdate: _dragUpdate,
+        onHorizontalDragEnd: _dragEnd,
+        child: ClipRect(
+          child: Stack(children: [
+            Positioned.fill(
+              child: Row(children: [
+                for (final a in widget.actions)
+                  SizedBox(
+                    width: _actionWidth,
+                    child: Material(
+                      color: a.background,
+                      child: InkWell(
+                        onTap: () {
+                          _close();
+                          a.onPressed();
+                        },
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(a.icon, color: a.foreground, size: 20),
+                          const SizedBox(height: 4),
+                          Text(a.label,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              style: context.text.labelSmall?.copyWith(color: a.foreground, fontWeight: FontWeight.w600, height: 1.1)),
+                        ]),
+                      ),
+                    ),
+                  ),
+              ]),
+            ),
+            AnimatedBuilder(
+              animation: _slide,
+              builder: (context, child) {
+                final shown = _slide.value > 0;
+                return Transform.translate(
+                  offset: Offset(_sign * _slide.value * _width, 0),
+                  child: Material(
+                    color: context.du.surface,
+                    child: Stack(children: [
+                      IgnorePointer(ignoring: shown, child: child),
+                      // while the actions show, a tap on the row shuts them instead of opening the food
+                      if (shown) Positioned.fill(child: GestureDetector(behavior: HitTestBehavior.opaque, onTap: _close)),
+                    ]),
+                  ),
+                );
+              },
+              child: widget.child,
+            ),
+          ]),
         ),
-        trailing: Text('${formatAmount(n['energy'] ?? 0, 'kcal')} kcal', style: const TextStyle(fontWeight: FontWeight.w600)),
-        onTap: onTap,
       ),
     );
   }
