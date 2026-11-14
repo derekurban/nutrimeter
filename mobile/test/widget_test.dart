@@ -78,4 +78,54 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(state.labelReviews, isEmpty);
   });
+
+  testWidgets('swiping a logged food right: copy to today, copy and paste, delete', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.5;
+    addTearDown(tester.view.reset);
+
+    final state = AppState.memory();
+    const bar = Food(
+      id: 'custom:bar',
+      source: FoodSource.custom,
+      name: 'Protein bar',
+      nutrients: {'energy': 400, 'protein': 33, 'carbs': 37, 'fat': 15},
+      servings: [Serving('bar', 60)],
+    );
+    state.saveCustomFood(bar);
+    final today = isoDate(DateTime.now());
+    final yesterday = addDays(today, -1);
+    state.log(date: yesterday, meal: Meal.lunch, food: bar, quantity: 1, unit: 'bar');
+    await tester.pumpWidget(NutrimeterApp(state: state));
+    await tester.tap(find.byTooltip('Previous day'));
+    await tester.pumpAndSettle();
+
+    Future<void> swipeOpen() async {
+      await tester.drag(find.text('Protein bar'), const Offset(300, 0));
+      await tester.pumpAndSettle();
+    }
+
+    // Copy to today.
+    await swipeOpen();
+    await tester.tap(find.text('Copy to today'));
+    await tester.pumpAndSettle();
+    expect(state.entriesFor(today), hasLength(1));
+    expect(state.entriesFor(yesterday), hasLength(1));
+
+    // Copy, then paste on the day before.
+    await swipeOpen();
+    await tester.tap(find.text('Copy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Previous day'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Paste Protein bar'));
+    await tester.pumpAndSettle();
+    expect(state.entriesFor(addDays(yesterday, -1)).single.grams, 60);
+
+    // Delete.
+    await swipeOpen();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(state.entriesFor(addDays(yesterday, -1)), isEmpty);
+  });
 }
