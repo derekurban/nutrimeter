@@ -7,6 +7,7 @@ import '../data/nutrients.dart';
 import '../data/store.dart';
 import '../logic/targets.dart';
 import '../version.dart';
+import 'meter.dart';
 import 'reading_settings_page.dart';
 import 'review.dart';
 import 'theme.dart';
@@ -37,7 +38,7 @@ class SettingsPage extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           UpdateBanner(onGo: () => Scrollable.ensureVisible(_updates.currentContext!, duration: const Duration(milliseconds: 400), curve: Curves.easeOutCubic)),
           const SectionTitle('Profile'),
-          Card(
+          Panel(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -76,7 +77,7 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
           const SectionTitle('Energy'),
-          Card(
+          Panel(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -99,7 +100,7 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
           const SectionTitle('Macro split'),
-          Card(
+          Panel(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -144,23 +145,35 @@ class SettingsPage extends StatelessWidget {
               ]),
             ),
           ),
-          SectionTitle('Nutrient targets', trailing: Text('tap to change', style: TextStyle(color: context.muted, fontSize: 12))),
-          for (final group in NutrientGroup.values) ...[
-            Padding(padding: const EdgeInsets.fromLTRB(4, 10, 4, 4), child: Text(group.label, style: const TextStyle(fontWeight: FontWeight.w600))),
-            Card(
-              clipBehavior: Clip.antiAlias,
-              child: Column(children: [
-                for (final def in nutrients.where((n) => n.group == group && n.key != 'energy' && !n.derived))
-                  _OverrideTile(def: def),
-              ]),
+          const SectionTitle('Standouts'),
+          Panel(
+            clipBehavior: Clip.antiAlias,
+            child: ListTile(
+              leading: const Icon(LucideIcons.slidersHorizontal),
+              title: Text(state.standouts.isEmpty ? 'None picked' : [for (final k in state.standouts) nutrientByKey[k]?.label ?? k].join(', ')),
+              subtitle: const Text('The nutrients on the diary beside calories, protein, carbs and fat'),
+              onTap: () => chooseStandouts(context),
             ),
-          ],
+          ),
+          SectionTitle('Nutrient targets', trailing: Text('tap to change', style: TextStyle(color: context.muted, fontSize: 12))),
+          // The macros, then the same outline as everywhere else: Carbs, Fats, Vitamins, Minerals, Other.
+          for (final (title, defs) in [
+            ('Macros', [for (final k in macroKeys) nutrientByKey[k]!]),
+            for (final (title, groups) in nutrientOutline) (title, [for (final d in nutrientsIn(groups)) if (!d.derived) d]),
+          ])
+            if (defs.isNotEmpty) ...[
+              Padding(padding: const EdgeInsets.fromLTRB(4, 10, 4, 4), child: Text(title, style: const TextStyle(fontWeight: FontWeight.w600))),
+              Panel(
+                clipBehavior: Clip.antiAlias,
+                child: Column(children: [for (final def in defs) _OverrideTile(def: def)]),
+              ),
+            ],
           const SectionTitle('Label reading'),
           const LabelReadingCard(),
           const SectionTitle('Food review'),
           const FoodReviewCard(),
           const SectionTitle('Your data'),
-          Card(
+          Panel(
             clipBehavior: Clip.antiAlias,
             child: Column(children: [
               ListTile(

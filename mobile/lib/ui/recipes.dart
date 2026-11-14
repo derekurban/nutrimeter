@@ -10,7 +10,7 @@ import '../logic/foods.dart';
 import 'custom_foods.dart';
 import 'food_detail.dart';
 import 'food_picker.dart';
-import 'nutrition.dart';
+import 'meter.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -38,7 +38,7 @@ class RecipesPage extends StatelessWidget {
                 padding: const EdgeInsets.all(32),
                 child: Text(
                   'Combine foods into meals you eat often, then log them in one step. '
-                  'You can also save any meal in your diary as a recipe from its ⋮ menu.',
+                  'You can also save a day in your diary as a recipe from its ⋮ menu.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: context.muted),
                 ),
@@ -63,7 +63,7 @@ class _RecipeCard extends StatelessWidget {
     final perServing = withDerived(scaleBy(recipeTotals(state, recipe).nutrients, 1 / (recipe.servings < 1 ? 1 : recipe.servings)));
     return Padding(
       padding: const EdgeInsets.only(top: 12),
-      child: Card(
+      child: Panel(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => openRecipeEditor(context, recipe.id),
@@ -78,8 +78,9 @@ class _RecipeCard extends StatelessWidget {
                 '${recipe.ingredients.length} ingredient${recipe.ingredients.length == 1 ? '' : 's'} · ${recipe.servings} serving${recipe.servings == 1 ? '' : 's'}',
                 style: TextStyle(color: context.muted),
               ),
-              const SizedBox(height: 12),
-              MacroDonut(nutrients: perServing, size: 72),
+              const SizedBox(height: 14),
+              MacroLine(perServing),
+              const SizedBox(height: 2),
               Text('per serving', style: TextStyle(color: context.muted, fontSize: 12)),
             ]),
           ),
@@ -229,7 +230,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
             Text('${formatAmount(totals.grams)} g total', style: TextStyle(color: context.muted)),
           ]),
           const SectionTitle('Ingredients'),
-          Card(
+          Panel(
             clipBehavior: Clip.antiAlias,
             child: Column(children: [
               for (final ing in _draft.ingredients)
@@ -269,7 +270,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
             onSelectionChanged: (s) => setState(() => _perServing = s.first),
           ),
           const SizedBox(height: 16),
-          MacroDonut(nutrients: shown),
+          MeterPanel(Intake(shown, state.resolvedTargets), portion: true),
           if (_saved != null && !_dirty && _draft.ingredients.isNotEmpty) ...[
             const SizedBox(height: 16),
             FilledButton.icon(
@@ -278,7 +279,7 @@ class _RecipeEditorState extends State<RecipeEditor> {
               onPressed: () => logFoodToday(context, recipeAsFood(state, _saved!)),
             ),
           ],
-          NutrientTargets(amounts: shown, targets: state.resolvedTargets),
+          NutrientGrid(Intake(shown, state.resolvedTargets)),
           const SectionTitle('Notes'),
           TextField(
             controller: _notes,

@@ -135,7 +135,7 @@ class _UpdatePanelState extends State<UpdatePanel> {
       _Phase.ready => ('Installing ${releaseLabel(latest!)}. The app closes and the new version opens next time.', OutlinedButton(onPressed: _install, child: const Text('Install'))),
       _Phase.installing => ('Opening the installer…', null),
     };
-    return Card(
+    return Panel(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -312,7 +312,7 @@ class FeedbackCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => Panel(
         clipBehavior: Clip.antiAlias,
         child: Column(children: [
           ListTile(

@@ -4,29 +4,25 @@ import '../data/model.dart';
 import '../data/nutrients.dart';
 import '../data/store.dart';
 import '../logic/foods.dart';
-import 'nutrition.dart';
+import 'meter.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
 class PickResult {
-  const PickResult(this.food, this.quantity, this.unit, this.grams, this.meal);
+  const PickResult(this.food, this.quantity, this.unit, this.grams);
 
   final Food food;
   final double quantity;
   final String unit;
   final double grams;
-  final Meal? meal;
 }
 
 /// One food: choose an amount, see its nutrition against your targets, then confirm.
 class FoodDetailPage extends StatefulWidget {
-  const FoodDetailPage({super.key, required this.food, required this.actionLabel, this.meal, this.initialQuantity, this.initialUnit, this.justAdded = false});
+  const FoodDetailPage({super.key, required this.food, required this.actionLabel, this.initialQuantity, this.initialUnit, this.justAdded = false});
 
   final Food food;
   final String actionLabel;
-
-  /// When set, a meal selector is shown and the result carries the chosen meal.
-  final Meal? meal;
   final double? initialQuantity;
   final String? initialUnit;
 
@@ -41,8 +37,6 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
   late final Food _food = widget.food;
   late double _quantity;
   late String _unit;
-  late Meal? _meal = widget.meal;
-  bool _showAll = false;
 
   @override
   void initState() {
@@ -116,32 +110,19 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
           padding: const EdgeInsets.only(top: 6),
           child: Text('= ${formatAmount(grams)} g', style: TextStyle(color: context.muted)),
         ),
-        if (_meal != null) ...[
-          const SizedBox(height: 14),
-          Wrap(spacing: 8, children: [
-            for (final m in Meal.values)
-              ChoiceChip(label: Text(m.label), selected: _meal == m, onSelected: (_) => setState(() => _meal = m)),
-          ]),
-        ],
         const SizedBox(height: 18),
-        MacroDonut(nutrients: scaled),
-        const SizedBox(height: 10),
-        NutritionPreview(amounts: scaled, targets: state.resolvedTargets, showAll: _showAll),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: () => setState(() => _showAll = !_showAll),
-            child: Text(_showAll ? 'Show key nutrients' : 'Show all available nutrients'),
-          ),
-        ),
-        Text('% = share of your daily target', style: TextStyle(color: context.muted, fontSize: 12)),
+        // This portion against the day's targets: how much of the day it is.
+        MeterPanel(Intake(scaled, state.resolvedTargets), portion: true),
+        NutrientGrid(Intake(scaled, state.resolvedTargets), onlyKnown: true),
+        const SizedBox(height: 14),
+        Text('Each share is this portion against your daily target. Tap a cell for its numbers.', style: TextStyle(color: context.muted, fontSize: 12)),
       ]),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: FilledButton(
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-            onPressed: grams > 0 ? () => Navigator.of(context).pop(PickResult(_food, _quantity, _unit, grams, _meal)) : null,
+            onPressed: grams > 0 ? () => Navigator.of(context).pop(PickResult(_food, _quantity, _unit, grams)) : null,
             child: Text(widget.actionLabel),
           ),
         ),
